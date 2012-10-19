@@ -22,8 +22,10 @@
 #include "clientCommands.h"
 
 #define CLOUD_SERVER_PORT "9999"
-#define CLOUD_SERVER_ADDRESS "192.168.211.128"
+#define CLOUD_SERVER_ADDRESS "192.168.211.130"
 #define MAXDATASIZE 100;
+#define ERROR "ERROR"
+#define MAX_FILE_SIZE 50000000
 
 /**
  * For getting socket address, IPv4 or IPv6
@@ -67,6 +69,56 @@ int sendDataTo(int sockfd, char* sent_packet, int sent_packet_size) {
     return success;
 }
 /**
+ * Compress ANY file into CHAR and send it across the network
+ * @param file_size - Pass reference point to store size. Used for send()
+ * @param file_path - FULL path of file
+ * @return char array of compressed data
+ */
+char* compress_File_to_stream(long *file_size, char *file_path)
+{
+	FILE *pFile;
+	pFile = fopen(file_path, "rb");
+
+	if(pFile == NULL)
+	{
+	 	fprintf(stderr,"Error opening file.\n");
+	    exit(EXIT_FAILURE);
+	}
+
+	//OBTAIN SIZE OF THE FILE
+	long lSize;
+	fseek(pFile, 0, SEEK_END); //Point the stream indicator all the way to the end of file
+	lSize = ftell(pFile); //Returns the size of the file based on the end indicator
+	rewind(pFile); //Point the stream indicator BACK to the start
+	file_size = &lSize;
+
+	//ALLOCATE MEMORY FOR FILE
+	char *buffer;
+	buffer = (char*) malloc (sizeof(char) * lSize); //Malloc memory
+	if (buffer == NULL)
+	{
+		fprintf(stderr,"Error allocating memory to file.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	//LOAD FILE INTO BUFFER
+	size_t result;
+	result = fread(buffer, 1, lSize, pFile);
+	printf("Size of file is %lu\n", result);
+	if(result != lSize)
+	{
+	    fprintf(stderr,"Error loading file into buffer.\n");
+	    exit(EXIT_FAILURE);
+	}
+	fclose(pFile);
+	return buffer;
+}
+;
+char* processExitOption() {
+    char *exitMsg = "Thanks for choosing Internix Cloud!\nHope to see you soon!\n";
+    return exitMsg;
+}
+/**
  * 
  * @param sockfd
  */
@@ -80,25 +132,75 @@ void communicateWithCloudServer(int sockfd) {
     /**
      * Used for verifying the user Command
      */
+    int packet_size;
+    long file_size;
     int option = 404; //Default error
     option = verifyUserCommand(userCommand);
-    if(option == 0) { //-exit
-        printf("Thanks for choosing Internix Cloud!\nHope to see you soon!\n");
-        exit(EXIT_SUCCESS);
-    } else if(option == 1) { //-registerNewAccount
-        strcpy(packet_data, registerNewAccount());
-        printf("Packet Data = %s\n", packet_data);
-        
-        int packet_size = strlen(packet_data);
-        if(sendDataTo(sockfd, packet_data, packet_size) == 1) {//Success SEND
-            char *received_packet = malloc (1000 * sizeof(char));
-            if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE 
-                printf("Received data: %s\n", received_packet);
+    
+    switch (option) {
+        case 0: //-exit
+           printf("%s", processExitOption());
+           exit(EXIT_SUCCESS);
+           break;
+        case 1: //-registerNewAccount
+            strcpy(packet_data, registerNewAccount());
+            if(strcmp(packet_data, ERROR) == 0) {
+                printf("Error in CMD 1.\n");
+                return;
             }
-        }else{
-           printf("Error: Sending packet. -registerNewAccount\n"); 
-        } 
+            printf("Packet Data = %s\n", packet_data);
+            packet_size = strlen(packet_data);
+            if(sendDataTo(sockfd, packet_data, packet_size) == 1) {//Success SEND
+                char *received_packet = malloc (1000 * sizeof(char));
+                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE REPLY
+                    printf("Received data: %s\n", received_packet);
+                }
+            }else{
+                printf("Error: Sending packet. -registerNewAccount\n"); 
+            }
+            break;
+        case 2://-login
+            strcpy(packet_data, loginToAccount());
+            if(strcmp(packet_data, ERROR) == 0) {
+                printf("Error in CMD 1.\n");
+                return;
+            }
+            printf("Packet Data = %s\n", packet_data);
+            packet_size = strlen(packet_data);
+            if(sendDataTo(sockfd, packet_data, packet_size) == 1) {//Success SEND
+                char *received_packet = malloc (1000 * sizeof(char));
+                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE REPLY
+                    printf("Received data: %s\n", received_packet);
+                }
+            }else{
+                printf("Error: Sending packet. -login\n"); 
+            }
+            break;
+        case 3: //-addFile
+            file_size;
+            char *fullFilePath = malloc(5000 * sizeof(char));
+            strcpy(fullFilePath, addFile());
+            char *compressedFileData = malloc(MAX_FILE_SIZE * sizeof(char));
+            strcpy(compressedFileData, compress_File_to_stream(&file_size, fullFilePath));
+            if(sendDataTo(sockfd, packet_data, file_size) == 1) {//Success SEND
+                char *received_packet = malloc (1000 * sizeof(char));
+                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE REPLY
+                    printf("Received data: %s\n", received_packet);
+                }
+            }else{
+                printf("Error: Sending packet. -addFile\n"); 
+            }
+            break;
+        case 4: //-deleteFile
+            break;
+        case 5: //-fetchFile
+            break;
+        case 6: //-verifyFile
+            break;
+            
+                
     }
+    
 }
 /**
  * 
@@ -183,7 +285,7 @@ int main(int argc, char** argv) {
 	char *output = malloc(1000 * sizeof(char));
     int verifyCode = 0;
     
-    printf(introMsg);
+    printf("%s", introMsg);
     while (1) {
 		connectToCloudServer();
     }   

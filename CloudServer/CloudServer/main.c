@@ -49,6 +49,32 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 /**
+ * Use packet to create into actual file for storage
+ * @param packet Sent data
+ */
+void convertPacketToFile(char *packet)
+{
+	printf("Grabbing Image from packet.\n");
+	int imageSize = packet->image_size;
+	printf("Image size is %d\n", imageSize);
+	
+	char *image_packet = packet->image_buffer;
+	while(*image_packet != '\n') //Move pointer to the beginning of the BYTES OF FILES
+	{
+		image_packet++;
+	}
+	image_packet++; //To skip the /n Character
+	printf("Writing Image to file.\n");
+	//Extract File
+	char *imagePtr = image_packet;
+	FILE *pFile;
+	
+	pFile = fopen("LocationImage.png", "wb");
+	fwrite(imagePtr, imageSize, 1, pFile);
+	//fwrite(image_packet, imageSize, 1 )
+	fclose(pFile);
+}
+/**
  * 
  * @param userName
  */
@@ -58,6 +84,13 @@ void createUserHomeDirectory(char* userName) {
    mkdir(fullPathName,0777);
    printf("Created Directory at: %s\n", fullPathName);
 }
+/**
+ * 
+ * @param sockfd
+ * @param received_packet
+ * @param received_packet_size
+ * @return 
+ */
 int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size) {
     int success = 0;
     int bytes_received = 0;
@@ -76,6 +109,13 @@ int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size)
     return success;
     
 }
+/**
+ * 
+ * @param sockfd
+ * @param sent_packet
+ * @param sent_packet_size
+ * @return 
+ */
 int sendDataTo(int sockfd, char* sent_packet, int sent_packet_size) {
     int success = 0;
     int bytes_sent = 0;
@@ -88,6 +128,22 @@ int sendDataTo(int sockfd, char* sent_packet, int sent_packet_size) {
     printf("Server: Packet sent successful.\n");
     return success;
 }
+
+int processRegisterNewAccount(char* received_packet, int new_fd) {
+    char *userName = malloc(100 * sizeof(char));
+    char *password = malloc(100 * sizeof(char));
+    sscanf(received_packet, "%*d %s %s", userName, password);
+    printf("Registering user - %s\n", userName);
+    createUserHomeDirectory(userName); //BRYAN - return pass or fail
+    
+    int pass = 1;
+    int fail = 0;
+    return pass; //NEED TO CHANGE
+}
+int loginToAccount(char *received_packet, int new_fd) {
+    return 1;
+}
+
 int main(int argc, char** argv) {
     
     int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
@@ -198,17 +254,30 @@ int main(int argc, char** argv) {
              * Determine which command is used
              */
             int userInputCommand;
+            int status;
             sscanf(received_packet, "%d", &userInputCommand);
             /**
             * This section is used to validate the commands
             */
-            if(userInputCommand == 1) { //-registerNewAccount
-                char *userName = malloc(100 * sizeof(char));
-                char *password = malloc(100 * sizeof(char));
-                sscanf(received_packet, "%*d %s %s", userName, password);
-                printf("Registering user - %s\n", userName);
-                createUserHomeDirectory(userName);
+            switch (userInputCommand) {
+                case 1:
+                    status = processRegisterNewAccount(received_packet, new_fd);
+                    if(status == 1) { //1 == Pass, 0 == fail
+                        sendDataTo(new_fd, "1", 10);
+                    } else {
+                        sendDataTo(new_fd, "0", 10);
+                    }
+                    break;
+                case 2:
+                    status = loginToAccount(received_packet, new_fd);
+                    if(status == 1) { //1 == Pass, 0 == fail
+                        sendDataTo(new_fd, "1", 10);
+                    } else {
+                        sendDataTo(new_fd, "0", 10);
+                    }
+                    break;
             }
+                    
         
         } //End of session while loop
 		

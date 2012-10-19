@@ -13,7 +13,10 @@ char* get_IntroMsg();
 char* get_HelpList();
 int verifyUserCommand();
 char* registerNewAccount();
+char* loginToAccount();
+char* addFile();
 char* concatSentence(int command, char* sentence1, char* sentence2);
+
 
 
 
