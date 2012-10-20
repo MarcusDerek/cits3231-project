@@ -19,6 +19,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include "tpl.h"
 
 
 
@@ -27,6 +28,12 @@
 #define TESTPORT "9999" //Port for simulating cloud server
 #define BACKLOG 10     // how many pending connections queue will hold
 #define FILESERVER_AREA "/Users/User/Desktop/Storage"
+
+typedef struct {
+    char* file_buffer;
+    char* file_path;
+    long size_of_file;			
+} FILE_DATA;
 /**
  * Essential function for setting up the Cloud Server
  * For getting socket address, IPv4 or IPv6
@@ -48,13 +55,17 @@ void *get_in_addr(struct sockaddr *sa)
     
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
+FILE_DATA unpackData() {
+    tpl_node tn;
+    
+}
 /**
  * Use packet to create into actual file for storage
+ * To access the STRUCTURE
  * @param packet Sent data
  */
 void convertPacketToFile(char *packet)
 {
-	printf("Grabbing Image from packet.\n");
 	int imageSize = packet->image_size;
 	printf("Image size is %d\n", imageSize);
 	
@@ -75,7 +86,7 @@ void convertPacketToFile(char *packet)
 	fclose(pFile);
 }
 /**
- * 
+ * BRYAN TO DO
  * @param userName
  */
 void createUserHomeDirectory(char* userName) {
@@ -142,6 +153,9 @@ int processRegisterNewAccount(char* received_packet, int new_fd) {
 }
 int loginToAccount(char *received_packet, int new_fd) {
     return 1;
+}
+int addFile(char* received_packet, int new_fd) {
+    int status = convertPacketToFile(received_packet);
 }
 
 int main(int argc, char** argv) {
@@ -276,6 +290,8 @@ int main(int argc, char** argv) {
                         sendDataTo(new_fd, "0", 10);
                     }
                     break;
+                case 3:
+                    status = addFile(received_packet, new_fd);
             }
                     
         

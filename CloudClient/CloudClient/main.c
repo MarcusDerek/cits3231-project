@@ -20,12 +20,20 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include "clientCommands.h"
+#include "tpl.h"
 
 #define CLOUD_SERVER_PORT "9999"
 #define CLOUD_SERVER_ADDRESS "192.168.211.130"
 #define MAXDATASIZE 100;
 #define ERROR "ERROR"
 #define MAX_FILE_SIZE 50000000
+
+typedef struct {
+    char* file_buffer;
+    char* file_path;
+    long size_of_file;			// e.g.		-65
+} FILE_DATA;
+
 
 /**
  * For getting socket address, IPv4 or IPv6
@@ -178,11 +186,21 @@ void communicateWithCloudServer(int sockfd) {
             break;
         case 3: //-addFile
             file_size;
-            char *fullFilePath = malloc(5000 * sizeof(char));
-            strcpy(fullFilePath, addFile());
-            char *compressedFileData = malloc(MAX_FILE_SIZE * sizeof(char));
-            strcpy(compressedFileData, compress_File_to_stream(&file_size, fullFilePath));
-            if(sendDataTo(sockfd, packet_data, file_size) == 1) {//Success SEND
+            FILE_DATA *newFile = malloc(sizeof(FILE_DATA));
+            newFile->file_buffer = malloc(MAX_FILE_SIZE * sizeof(char));
+            newFile->file_path = malloc(5000 * sizeof(char));
+            strcpy(newFile->file_path, addFile());
+            strcpy(newFile->file_buffer, compress_File_to_stream(&file_size, newFile->file_path));
+            newFile->size_of_file = file_size;
+            
+            tpl_node tn;
+            tn = tpl_map("S(sii)", &newFile);
+            tpl_pack(tn, 0);
+            char filePacket[MAX_FILE_SIZE];
+            tpl_dump(tn, TPL_MEM, filePacket, MAX_FILE_SIZE);
+            
+            if(sendDataTo(sockfd, filePacket, file_size) == 1) {//Success SEND
+                tpl_free(tn);
                 char *received_packet = malloc (1000 * sizeof(char));
                 if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE REPLY
                     printf("Received data: %s\n", received_packet);
