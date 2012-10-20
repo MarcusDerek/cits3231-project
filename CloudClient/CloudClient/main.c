@@ -26,12 +26,12 @@
 #define CLOUD_SERVER_ADDRESS "192.168.211.130"
 #define MAXDATASIZE 100;
 #define ERROR "ERROR"
-#define MAX_FILE_SIZE 50000000
+#define MAX_FILE_SIZE 50000
 
 typedef struct {
-    char* file_buffer;
+    void* file_buffer;
     char* file_path;
-    long size_of_file;			// e.g.		-65
+    size_t size_of_file;			// e.g.		-65
 } FILE_DATA;
 
 
@@ -82,7 +82,7 @@ int sendDataTo(int sockfd, char* sent_packet, int sent_packet_size) {
  * @param file_path - FULL path of file
  * @return char array of compressed data
  */
-char* compress_File_to_stream(long *file_size, char *file_path)
+void* compress_File_to_stream(size_t *file_size, char *file_path)
 {
 	FILE *pFile;
 	pFile = fopen(file_path, "rb");
@@ -98,11 +98,10 @@ char* compress_File_to_stream(long *file_size, char *file_path)
 	fseek(pFile, 0, SEEK_END); //Point the stream indicator all the way to the end of file
 	lSize = ftell(pFile); //Returns the size of the file based on the end indicator
 	rewind(pFile); //Point the stream indicator BACK to the start
-	file_size = &lSize;
 
 	//ALLOCATE MEMORY FOR FILE
-	char *buffer;
-	buffer = (char*) malloc (sizeof(char) * lSize); //Malloc memory
+	void *buffer;
+	buffer = (void*) malloc (sizeof(void) * lSize); //Malloc memory
 	if (buffer == NULL)
 	{
 		fprintf(stderr,"Error allocating memory to file.\n");
@@ -113,12 +112,14 @@ char* compress_File_to_stream(long *file_size, char *file_path)
 	size_t result;
 	result = fread(buffer, 1, lSize, pFile);
 	printf("Size of file is %lu\n", result);
+        *file_size = result;
 	if(result != lSize)
 	{
 	    fprintf(stderr,"Error loading file into buffer.\n");
 	    exit(EXIT_FAILURE);
 	}
 	fclose(pFile);
+        printf("File Process Complete.\n");
 	return buffer;
 }
 ;
@@ -137,11 +138,13 @@ void communicateWithCloudServer(int sockfd) {
     char *userCommand = malloc(100 * sizeof(char));
     scanf("%s", userCommand);
     
+    
     /**
      * Used for verifying the user Command
      */
     int packet_size;
-    long file_size;
+    FILE_DATA *newFile;
+    size_t file_size;
     int option = 404; //Default error
     option = verifyUserCommand(userCommand);
     
@@ -185,29 +188,23 @@ void communicateWithCloudServer(int sockfd) {
             }
             break;
         case 3: //-addFile
-            file_size;
-            FILE_DATA *newFile = malloc(sizeof(FILE_DATA));
-            newFile->file_buffer = malloc(MAX_FILE_SIZE * sizeof(char));
+            sendDataTo(sockfd, "3", 5); //Trigger server to receive file
+            newFile = malloc(sizeof(FILE_DATA));
             newFile->file_path = malloc(5000 * sizeof(char));
             strcpy(newFile->file_path, addFile());
-            strcpy(newFile->file_buffer, compress_File_to_stream(&file_size, newFile->file_path));
+            //newFile->file_buffer = compress_File_to_stream(&file_size, newFile->file_path);
+            void *file_buffer = compress_File_to_stream(&file_size, newFile->file_path);
             newFile->size_of_file = file_size;
+            printf("Size of FILE AGAIN = %lu + path = %s\n", newFile->size_of_file, newFile->file_path);
             
-            tpl_node tn;
+            tpl_node *tn;
             tn = tpl_map("S(sii)", &newFile);
             tpl_pack(tn, 0);
-            char filePacket[MAX_FILE_SIZE];
-            tpl_dump(tn, TPL_MEM, filePacket, MAX_FILE_SIZE);
-            
-            if(sendDataTo(sockfd, filePacket, file_size) == 1) {//Success SEND
-                tpl_free(tn);
-                char *received_packet = malloc (1000 * sizeof(char));
-                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE REPLY
-                    printf("Received data: %s\n", received_packet);
-                }
-            }else{
-                printf("Error: Sending packet. -addFile\n"); 
-            }
+            //void *filePacket;
+            tpl_dump(tn, TPL_MEM, &file_buffer, &file_size);     
+            int size_sent = send(sockfd, file_buffer, file_size, 0);
+            printf("Size sent = %d\n", size_sent);
+            tpl_free(tn);
             break;
         case 4: //-deleteFile
             break;

@@ -28,6 +28,7 @@
 #define TESTPORT "9999" //Port for simulating cloud server
 #define BACKLOG 10     // how many pending connections queue will hold
 #define FILESERVER_AREA "/Users/User/Desktop/Storage"
+#define MAX_FILE_SIZE 50000
 
 typedef struct {
     char* file_buffer;
@@ -55,36 +56,42 @@ void *get_in_addr(struct sockaddr *sa)
     
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
-FILE_DATA unpackData() {
-    tpl_node tn;
-    
+FILE_DATA unpackData(char* filePacket, size_t file_size) {
+    FILE_DATA *newFile = malloc(sizeof(FILE_DATA));
+    newFile->file_buffer = malloc(MAX_FILE_SIZE * sizeof(char));
+    newFile->file_path = malloc(5000 * sizeof(char));
+    tpl_node *tn;
+    tn = tpl_map("S(sii)", &newFile);
+    tpl_load(tn, TPL_MEM | TPL_EXCESS_OK, filePacket, file_size); //load filepacket into memory
+    tpl_unpack(tn, 0); //Unpack into FILE_DATA
+    printf("File size = %ld",newFile->size_of_file);
 }
 /**
  * Use packet to create into actual file for storage
  * To access the STRUCTURE
  * @param packet Sent data
  */
-void convertPacketToFile(char *packet)
-{
-	int imageSize = packet->image_size;
-	printf("Image size is %d\n", imageSize);
-	
-	char *image_packet = packet->image_buffer;
-	while(*image_packet != '\n') //Move pointer to the beginning of the BYTES OF FILES
-	{
-		image_packet++;
-	}
-	image_packet++; //To skip the /n Character
-	printf("Writing Image to file.\n");
-	//Extract File
-	char *imagePtr = image_packet;
-	FILE *pFile;
-	
-	pFile = fopen("LocationImage.png", "wb");
-	fwrite(imagePtr, imageSize, 1, pFile);
-	//fwrite(image_packet, imageSize, 1 )
-	fclose(pFile);
-}
+//void convertPacketToFile(char *packet)
+//{
+//	int imageSize = packet->image_size;
+//	printf("Image size is %d\n", imageSize);
+//	
+//	char *image_packet = packet->image_buffer;
+//	while(*image_packet != '\n') //Move pointer to the beginning of the BYTES OF FILES
+//	{
+//		image_packet++;
+//	}
+//	image_packet++; //To skip the /n Character
+//	printf("Writing Image to file.\n");
+//	//Extract File
+//	char *imagePtr = image_packet;
+//	FILE *pFile;
+//	
+//	pFile = fopen("LocationImage.png", "wb");
+//	fwrite(imagePtr, imageSize, 1, pFile);
+//	//fwrite(image_packet, imageSize, 1 )
+//	fclose(pFile);
+//}
 /**
  * BRYAN TO DO
  * @param userName
@@ -103,15 +110,18 @@ void createUserHomeDirectory(char* userName) {
  * @return 
  */
 int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size) {
+    struct timeval tv;
+    tv.tv_sec = 5; //5 sec
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(char *)&tv,sizeof(struct timeval));
     int success = 0;
     int bytes_received = 0;
     while (bytes_received < received_packet_size) {
         bytes_received = recv(sockfd, received_packet, received_packet_size, 0);
         printf("Received: %d VS %d\n", bytes_received, received_packet_size);
-        if(bytes_received != 0) { //TEMP BUG FIX
+        if(bytes_received == -1) { //TEMP BUG FIX
             success = 1;
-            break;
-        }else {
+            return success;
+        }else if(bytes_received == 0){
             printf("Connection terminated abruptly.\n");
             exit(EXIT_FAILURE);
         }
@@ -155,7 +165,7 @@ int loginToAccount(char *received_packet, int new_fd) {
     return 1;
 }
 int addFile(char* received_packet, int new_fd) {
-    int status = convertPacketToFile(received_packet);
+    //int status = convertPacketToFile(received_packet);
 }
 
 int main(int argc, char** argv) {
@@ -250,6 +260,7 @@ int main(int argc, char** argv) {
         inet_ntop(their_addr.ss_family,
                   get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
         printf("server: got connection from %s\n", s);
+        printf("Awaiting User Commands...\n");
         
         /**
          * This section is used to response to server connections
@@ -257,6 +268,8 @@ int main(int argc, char** argv) {
          */
         while(1) {
             char *received_packet = malloc(1000 * sizeof(char));
+            char *file_packet = malloc(MAX_FILE_SIZE * sizeof(char));
+            int file_size;
             char *sent_packet = malloc(1000 * sizeof(char));
 
             if(receiveDataFrom(new_fd, received_packet, 300) == 1) {
@@ -264,10 +277,14 @@ int main(int argc, char** argv) {
             } else {
                 printf("FAIL!\n");
             }
+            int userInputCommand;
+            /*
+             *  Exceptions
+             */
              /*
              * Determine which command is used
              */
-            int userInputCommand;
+            
             int status;
             sscanf(received_packet, "%d", &userInputCommand);
             /**
@@ -291,7 +308,13 @@ int main(int argc, char** argv) {
                     }
                     break;
                 case 3:
-                    status = addFile(received_packet, new_fd);
+                    printf("Prepared to receive FILE.\n");
+//                    if(file_size = receiveDataFrom(new_fd, file_packet, 50000) == 1) {
+//                        printf("OMG HERE IS %s + size: %d \n", file_packet, file_size);
+//                        //unpackData(file_packet, file_size);
+//                    }
+                    
+                    //status = addFile(received_packet, new_fd);
             }
                     
         

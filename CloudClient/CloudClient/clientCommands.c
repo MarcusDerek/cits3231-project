@@ -134,12 +134,9 @@ char* addFile() {
     
     char *output = malloc(1000 * sizeof(char));
     printf("-- Add File Command initiated --\n");
-    printf("Please specify the FULL path of the file you wish to upload below.");
+    printf("Please specify the FULL path of the file you wish to upload below.\n File Path: ");
     scanf("%s", fullPathName);
-    //printf("Enter your 6-digit password: ");
-    //scanf("%s", password);
-    //output = concatSentence(2,userName, password); //2 = login
     strcpy(output, fullPathName);
-    printf("File: %s ----- SELECTED\n.", output);
+    printf("File: %s ----- SELECTED\n", output);
     return output;
 }
