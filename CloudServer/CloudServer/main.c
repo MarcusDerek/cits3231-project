@@ -27,7 +27,7 @@
 #define CLOUD_SERVER_ADDRESS "130.95.1.70"
 #define TESTPORT "9999" //Port for simulating cloud server
 #define BACKLOG 10     // how many pending connections queue will hold
-#define FILESERVER_AREA "/Users/User/Desktop/Storage"
+#define FILESERVER_AREA "/Users/MarcusDerek/Documents/UWA/Storage"
 #define MAX_FILE_SIZE 50000
 
 typedef struct {
@@ -56,15 +56,25 @@ void *get_in_addr(struct sockaddr *sa)
     
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
-FILE_DATA unpackData(char* filePacket, size_t file_size) {
+void* unpackData(void* filePacket, size_t file_size) {
     FILE_DATA *newFile = malloc(sizeof(FILE_DATA));
     newFile->file_buffer = malloc(MAX_FILE_SIZE * sizeof(char));
     newFile->file_path = malloc(5000 * sizeof(char));
     tpl_node *tn;
     tn = tpl_map("S(sii)", &newFile);
-    tpl_load(tn, TPL_MEM | TPL_EXCESS_OK, filePacket, file_size); //load filepacket into memory
+    tpl_load(tn, TPL_MEM, filePacket, file_size); //load filepacket into memory
     tpl_unpack(tn, 0); //Unpack into FILE_DATA
-    printf("File size = %ld",newFile->size_of_file);
+    printf("Size of REAL FILE === %lu\n", newFile->size_of_file);
+   //printf("File size = %ld",newFile->size_of_file);
+}
+void packetToFile(char *packet, int size) { 
+    //Extract File
+    char *ptr = packet;
+    FILE *pFile;
+    pFile = fopen("zzz.bz2", "wb");
+    fwrite(ptr, size, 1, pFile);
+    fclose(pFile);
+    printf("File created.\n");
 }
 /**
  * Use packet to create into actual file for storage
@@ -109,26 +119,57 @@ void createUserHomeDirectory(char* userName) {
  * @param received_packet_size
  * @return 
  */
+//int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size) {
+//    int success = 0;
+//    int bytes_received = 0;
+//    while (bytes_received < received_packet_size) {
+//        bytes_received = recv(sockfd, received_packet, received_packet_size, 0);
+//        printf("Received: %d VS %d\n", bytes_received, received_packet_size);
+//        if(bytes_received == -1) { //TEMP BUG FIX
+//            success = 1;
+//            return success;
+//        }else if(bytes_received == 0){
+//            printf("Connection terminated abruptly.\n");
+//            exit(EXIT_FAILURE);
+//        }else{
+//            success = 1;
+//        }
+//    }
+//    printf("Server: Packet received successful.\n");
+//    return success;
+//    
+//}
 int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size) {
-    struct timeval tv;
-    tv.tv_sec = 5; //5 sec
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(char *)&tv,sizeof(struct timeval));
+    int bytes_received;
+    int total_size = 0;
     int success = 0;
-    int bytes_received = 0;
-    while (bytes_received < received_packet_size) {
-        bytes_received = recv(sockfd, received_packet, received_packet_size, 0);
-        printf("Received: %d VS %d\n", bytes_received, received_packet_size);
-        if(bytes_received == -1) { //TEMP BUG FIX
+    while(bytes_received != received_packet_size) {
+        bytes_received = recv(sockfd, received_packet + total_size, received_packet_size, 0); //Receive First Line @ Loop 0
+        total_size = total_size + bytes_received; //Increment pointer to add additional data
+        printf("%d bytes received.\n", total_size);
+        if(bytes_received == 0) {
+                printf("File transfer complete.\n");
+                break;
+        }
+        if(bytes_received == -1) {
+                printf("Error receiving file.\n");
+                break;
+        }
+        if(total_size == received_packet_size) {
             success = 1;
-            return success;
-        }else if(bytes_received == 0){
-            printf("Connection terminated abruptly.\n");
-            exit(EXIT_FAILURE);
+            break;
         }
     }
-    printf("Server: Packet received successful.\n");
+    printf("Total Bytes Received from Server: %d\n", total_size);
     return success;
-    
+}
+int receiveFileSizeFrom(int sockfd, int *received_packet) {
+    recv(sockfd, received_packet, 30, 0);
+}
+int receiveCommandFrom(int sockfd, char* received_packet) {
+    int success = 1;
+    recv(sockfd, received_packet, 30, 0);
+    return success;
 }
 /**
  * 
@@ -268,11 +309,11 @@ int main(int argc, char** argv) {
          */
         while(1) {
             char *received_packet = malloc(1000 * sizeof(char));
-            char *file_packet = malloc(MAX_FILE_SIZE * sizeof(char));
+            void *file_packet = malloc(2800000 * sizeof(char));
             int file_size;
             char *sent_packet = malloc(1000 * sizeof(char));
 
-            if(receiveDataFrom(new_fd, received_packet, 300) == 1) {
+            if(receiveCommandFrom(new_fd, received_packet) == 1) {
                 printf("Received MSG: %s\n", received_packet);
             } else {
                 printf("FAIL!\n");
@@ -308,11 +349,17 @@ int main(int argc, char** argv) {
                     }
                     break;
                 case 3:
-                    printf("Prepared to receive FILE.\n");
-//                    if(file_size = receiveDataFrom(new_fd, file_packet, 50000) == 1) {
-//                        printf("OMG HERE IS %s + size: %d \n", file_packet, file_size);
-//                        //unpackData(file_packet, file_size);
-//                    }
+                    printf("Prepared to receive FILE SIZE.\n");
+                    int file_size; //Size of the file received
+                    int bytes_received;
+                    receiveFileSizeFrom(new_fd, &file_size);
+                    printf("File size received = %d\n", file_size);
+                    if(receiveDataFrom(new_fd, file_packet, 41) == 1) {
+                        printf("Bytes Received: %d - Size = %d\n", bytes_received, file_size);
+                        unpackData(file_packet, 27);
+                        packetToFile(file_packet, file_size);
+                        
+                    }
                     
                     //status = addFile(received_packet, new_fd);
             }

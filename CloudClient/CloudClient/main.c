@@ -24,12 +24,12 @@
 
 #define CLOUD_SERVER_PORT "9999"
 #define CLOUD_SERVER_ADDRESS "192.168.211.130"
-#define MAXDATASIZE 100;
+#define DEFAULT_SIZE 100;
 #define ERROR "ERROR"
 #define MAX_FILE_SIZE 50000
 
 typedef struct {
-    void* file_buffer;
+    char* file_buffer;
     char* file_path;
     size_t size_of_file;			// e.g.		-65
 } FILE_DATA;
@@ -46,6 +46,26 @@ void *get_in_addr(struct sockaddr *sa)
     }
     
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+int send_all_data(int socket, char *packet, int packet_size)
+{
+    int bytes_sent = 0;        // how many bytes we've sent
+    int bytes_remaining = packet_size; // how many we have left to send
+    int n;
+
+    while(bytes_sent < packet_size) {
+        n = send(socket, packet + bytes_sent, bytes_remaining, 0);
+        printf("%d bytes sent to client.\n", n);
+        if (n == -1) { 
+            printf("BREAK!!!!\n");
+            break; 
+        }
+        bytes_sent = bytes_sent + n;
+        bytes_remaining = bytes_remaining - n;
+    }
+	printf("Total bytes sent = %d\n", bytes_sent);
+
+    return n==-1?-1:0; // return -1 on failure, 0 on success
 }
 int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size) {
     int success = 0;
@@ -64,6 +84,12 @@ int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size)
     return success;
     
 }
+
+void sendFileSizeDataTo(int sockfd, int sent_packet) {
+    
+    int bytes_sent = send(sockfd, &sent_packet, 30, 0);
+}
+
 int sendDataTo(int sockfd, char* sent_packet, int sent_packet_size) {
     int success = 0;
     int bytes_sent = 0;
@@ -82,7 +108,7 @@ int sendDataTo(int sockfd, char* sent_packet, int sent_packet_size) {
  * @param file_path - FULL path of file
  * @return char array of compressed data
  */
-void* compress_File_to_stream(size_t *file_size, char *file_path)
+char* compress_File_to_stream(size_t *file_size, char *file_path)
 {
 	FILE *pFile;
 	pFile = fopen(file_path, "rb");
@@ -100,8 +126,8 @@ void* compress_File_to_stream(size_t *file_size, char *file_path)
 	rewind(pFile); //Point the stream indicator BACK to the start
 
 	//ALLOCATE MEMORY FOR FILE
-	void *buffer;
-	buffer = (void*) malloc (sizeof(void) * lSize); //Malloc memory
+	char *buffer;
+	buffer = (char*) malloc (sizeof(char) * lSize); //Malloc memory
 	if (buffer == NULL)
 	{
 		fprintf(stderr,"Error allocating memory to file.\n");
@@ -192,19 +218,17 @@ void communicateWithCloudServer(int sockfd) {
             newFile = malloc(sizeof(FILE_DATA));
             newFile->file_path = malloc(5000 * sizeof(char));
             strcpy(newFile->file_path, addFile());
-            //newFile->file_buffer = compress_File_to_stream(&file_size, newFile->file_path);
-            void *file_buffer = compress_File_to_stream(&file_size, newFile->file_path);
+            strcpy(newFile->file_buffer,compress_File_to_stream(&file_size, newFile->file_path));
             newFile->size_of_file = file_size;
             printf("Size of FILE AGAIN = %lu + path = %s\n", newFile->size_of_file, newFile->file_path);
-            
+            sendFileSizeDataTo(sockfd, file_size);
             tpl_node *tn;
             tn = tpl_map("S(sii)", &newFile);
             tpl_pack(tn, 0);
-            //void *filePacket;
-            tpl_dump(tn, TPL_MEM, &file_buffer, &file_size);     
-            int size_sent = send(sockfd, file_buffer, file_size, 0);
-            printf("Size sent = %d\n", size_sent);
-            tpl_free(tn);
+            void *file_buffer;
+            tpl_dump(tn, TPL_MEM, &file_buffer, &file_size);
+            send_all_data(sockfd, file_buffer, file_size);
+            //tpl_free(tn);
             break;
         case 4: //-deleteFile
             break;
