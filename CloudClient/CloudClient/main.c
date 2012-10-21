@@ -208,7 +208,9 @@ void communicateWithCloudServer(int sockfd) {
             if(sendDataTo(sockfd, packet_data, packet_size) == 1) {//Success SEND
                 char *received_packet = malloc (1000 * sizeof(char));
                 if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE REPLY
-                    printf("Received data: %s\n", received_packet);
+                    if(strcmp(received_packet,"1") == 0) {
+                        printf("Account registration successful!\n");
+                    }
                 }
             }else{
                 printf("Error: Sending packet. -registerNewAccount\n"); 
@@ -225,7 +227,9 @@ void communicateWithCloudServer(int sockfd) {
             if(sendDataTo(sockfd, packet_data, packet_size) == 1) {//Success SEND
                 char *received_packet = malloc (1000 * sizeof(char));
                 if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE REPLY
-                    printf("Received data: %s\n", received_packet);
+                    if(strcmp(received_packet,"1") == 0) {
+                        printf("Login successful!\n");
+                    }
                 }
             }else{
                 printf("Error: Sending packet. -login\n"); 
@@ -242,8 +246,16 @@ void communicateWithCloudServer(int sockfd) {
             sprintf(convertFileSize,"%lu", file_size);
             char *fileNameSize = concatSentence(0, convertFileSize, extractFileName(filePath));
             sendFileSizeNameDataTo(sockfd, fileNameSize);
-            //send_all_data(sockfd, file_buffer, file_size);
-            //tpl_free(tn);
+            if(send_all_data(sockfd, fileBuffer, file_size) == 0) { //Success
+                char *received_packet = malloc (1000 * sizeof(char));
+                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE REPLY
+                    if(strcmp(received_packet,"1") == 0) {
+                        printf("Your file has been added to your storage!\n");
+                    }
+                }
+            }else{
+                printf("Error: Sending packet. -addFile\n"); 
+            }
             break;
         case 4: //-deleteFile
             break;

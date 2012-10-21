@@ -137,6 +137,5 @@ char* addFile() {
     printf("Please specify the FULL path of the file you wish to upload below.\n File Path: ");
     scanf("%s", fullPathName);
     strcpy(output, fullPathName);
-    printf("File: %s ----- SELECTED\n", output);
     return output;
 }

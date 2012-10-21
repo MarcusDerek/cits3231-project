@@ -76,10 +76,13 @@ char* receive_all_data(int sockfd, int packet_size) {
     return packet;
 }
 
-void packetToFile(char *packet, int size) { 
+void packetToFile(char *packet, int size, char *fileName) { 
     //Extract File
     FILE *pFile;
-    pFile = fopen("test2.dmg", "wb");
+    char *storageFilePath = malloc(1000 * sizeof(char));
+    strcat(storageFilePath,"Storage/");
+    strcat(storageFilePath,fileName);
+    pFile = fopen(storageFilePath, "wb");
     fwrite(packet, 1, size, pFile);
     fclose(pFile);
     printf("File created.\n");
@@ -132,9 +135,19 @@ int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size)
 int receiveFileNameSizeFrom(int sockfd, char *received_packet) {
     recv(sockfd, received_packet, 30, 0);
 }
+/**
+ * 
+ * @param sockfd
+ * @param received_packet
+ * @return 
+ */
 int receiveCommandFrom(int sockfd, char* received_packet) {
     int success = 1;
-    recv(sockfd, received_packet, 30, 0);
+    int bytes_received = recv(sockfd, received_packet, 30, 0);
+    if(bytes_received == 0) {
+        printf("Connection terminated abruptly.\n");
+        exit(EXIT_FAILURE);
+    }
     return success;
 }
 /**
@@ -173,6 +186,26 @@ int loginToAccount(char *received_packet, int new_fd) {
 }
 int addFile(char* received_packet, int new_fd) {
     //int status = convertPacketToFile(received_packet);
+}
+int addFileToCloud(int new_fd) {
+    int success = 0;
+    printf("Prepared to receive FILE SIZE.\n");
+    char *fileNameSize = malloc(1000 * sizeof(char));
+    int file_size;
+    int bytes_received;
+    receiveFileNameSizeFrom(new_fd, fileNameSize);
+    char *fileName = malloc(1000 * sizeof(char));
+    extractFileNameSize(fileNameSize, &file_size, fileName);
+    printf("Filename: %s | Size: %d\n",fileName, file_size);
+    char *file_packet = malloc(file_size * sizeof(char));
+    if(receiveDataFrom(new_fd, file_packet, file_size) == 1) { //success
+        packetToFile(file_packet, file_size, fileName);
+        success = 1;
+    } else {
+        printf("Error occurred: addFileToCloud()\n");
+        exit(EXIT_FAILURE);
+    }
+    return success;
 }
 
 int main(int argc, char** argv) {
@@ -275,14 +308,14 @@ int main(int argc, char** argv) {
          */
         while(1) {
             char *received_packet = malloc(1000 * sizeof(char));
-            void *file_packet = malloc(2800000 * sizeof(char));
             int file_size;
             char *sent_packet = malloc(1000 * sizeof(char));
 
             if(receiveCommandFrom(new_fd, received_packet) == 1) {
                 printf("Received MSG: %s\n", received_packet);
             } else {
-                printf("FAIL!\n");
+                printf("Error: Receive invalid command!\n");
+                exit(EXIT_FAILURE);
             }
             int userInputCommand;
             /*
@@ -302,32 +335,32 @@ int main(int argc, char** argv) {
                     status = processRegisterNewAccount(received_packet, new_fd);
                     if(status == 1) { //1 == Pass, 0 == fail
                         sendDataTo(new_fd, "1", 10);
+                        printf("-registerNewAccount: Success\n");
                     } else {
                         sendDataTo(new_fd, "0", 10);
+                        printf("-registerNewAccount: Fail\n");
                     }
                     break;
                 case 2:
                     status = loginToAccount(received_packet, new_fd);
                     if(status == 1) { //1 == Pass, 0 == fail
                         sendDataTo(new_fd, "1", 10);
+                        printf("-login: Success\n");
                     } else {
                         sendDataTo(new_fd, "0", 10);
+                        printf("-login: Fail\n");
                     }
                     break;
                 case 3:
-                    printf("Prepared to receive FILE SIZE.\n");
-                    char *fileNameSize = malloc(1000 * sizeof(char));
-                    int file_size;
-                    int bytes_received;
-                    receiveFileNameSizeFrom(new_fd, fileNameSize);
-                    char *fileName = malloc(1000 * sizeof(char));
-                    extractFileNameSize(fileNameSize, &file_size, fileName);
-                    printf("Filename: %s | Size: %d\n",fileName, file_size);
-                    if(receiveDataFrom(new_fd, file_packet, 41) == 1) {
-                        printf("Bytes Received: %d - Size = %d\n", bytes_received, file_size);
-                        packetToFile(file_packet, file_size);
-                        
+                    status = addFileToCloud(new_fd);
+                    if(status == 1) { //1 == Pass, 0 == fail
+                        sendDataTo(new_fd, "1", 10);
+                        printf("-addFile: Success\n");
+                    } else {
+                        sendDataTo(new_fd, "0", 10);
+                        printf("-addFile: Fail.\n");
                     }
+                    break;
                     
                     //status = addFile(received_packet, new_fd);
             }
