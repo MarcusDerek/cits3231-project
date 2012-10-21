@@ -19,7 +19,6 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <sys/stat.h>
-#include "tpl.h"
 
 
 
@@ -56,52 +55,35 @@ void *get_in_addr(struct sockaddr *sa)
     
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
-void* unpackData(void* filePacket, size_t file_size) {
-    FILE_DATA *newFile = malloc(sizeof(FILE_DATA));
-    newFile->file_buffer = malloc(MAX_FILE_SIZE * sizeof(char));
-    newFile->file_path = malloc(5000 * sizeof(char));
-    tpl_node *tn;
-    tn = tpl_map("S(sii)", &newFile);
-    tpl_load(tn, TPL_MEM, filePacket, file_size); //load filepacket into memory
-    tpl_unpack(tn, 0); //Unpack into FILE_DATA
-    printf("Size of REAL FILE === %lu\n", newFile->size_of_file);
-   //printf("File size = %ld",newFile->size_of_file);
+char* receive_all_data(int sockfd, int packet_size) {
+    int bytes_received;
+    int total_size = 0;
+    char *packet = malloc(packet_size * sizeof(char));
+    while(bytes_received != packet_size) {
+        bytes_received = recv(sockfd, packet + total_size, packet_size, 0); //Receive First Line @ Loop 0
+        total_size = total_size + bytes_received; //Increment pointer to add additional data
+        printf("%d bytes received.\n", total_size);
+        if(bytes_received == 0) {//Problem or Done
+                printf("File transfer complete.\n");
+                break;
+        }
+        if(bytes_received == -1) {
+                printf("Error receiving File.\n");
+                break;
+        }
+    }
+    printf("Total Bytes Received from Server: %d\n", total_size);
+    return packet;
 }
+
 void packetToFile(char *packet, int size) { 
     //Extract File
-    char *ptr = packet;
     FILE *pFile;
-    pFile = fopen("zzz.bz2", "wb");
-    fwrite(ptr, size, 1, pFile);
+    pFile = fopen("test2.dmg", "wb");
+    fwrite(packet, 1, size, pFile);
     fclose(pFile);
     printf("File created.\n");
 }
-/**
- * Use packet to create into actual file for storage
- * To access the STRUCTURE
- * @param packet Sent data
- */
-//void convertPacketToFile(char *packet)
-//{
-//	int imageSize = packet->image_size;
-//	printf("Image size is %d\n", imageSize);
-//	
-//	char *image_packet = packet->image_buffer;
-//	while(*image_packet != '\n') //Move pointer to the beginning of the BYTES OF FILES
-//	{
-//		image_packet++;
-//	}
-//	image_packet++; //To skip the /n Character
-//	printf("Writing Image to file.\n");
-//	//Extract File
-//	char *imagePtr = image_packet;
-//	FILE *pFile;
-//	
-//	pFile = fopen("LocationImage.png", "wb");
-//	fwrite(imagePtr, imageSize, 1, pFile);
-//	//fwrite(image_packet, imageSize, 1 )
-//	fclose(pFile);
-//}
 /**
  * BRYAN TO DO
  * @param userName
@@ -114,31 +96,15 @@ void createUserHomeDirectory(char* userName) {
 }
 /**
  * 
- * @param sockfd
- * @param received_packet
- * @param received_packet_size
- * @return 
+ * @param fileNameSize
+ * @param filesize
+ * @param fileName
  */
-//int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size) {
-//    int success = 0;
-//    int bytes_received = 0;
-//    while (bytes_received < received_packet_size) {
-//        bytes_received = recv(sockfd, received_packet, received_packet_size, 0);
-//        printf("Received: %d VS %d\n", bytes_received, received_packet_size);
-//        if(bytes_received == -1) { //TEMP BUG FIX
-//            success = 1;
-//            return success;
-//        }else if(bytes_received == 0){
-//            printf("Connection terminated abruptly.\n");
-//            exit(EXIT_FAILURE);
-//        }else{
-//            success = 1;
-//        }
-//    }
-//    printf("Server: Packet received successful.\n");
-//    return success;
-//    
-//}
+void extractFileNameSize(char *fileNameSize, int *filesize, char *fileName) {
+    char *tempFileSize = malloc(100 * sizeof(char));
+    sscanf(fileNameSize, "%*d %s %s",tempFileSize, fileName);
+    *filesize = atoi(tempFileSize);
+}
 int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size) {
     int bytes_received;
     int total_size = 0;
@@ -163,7 +129,7 @@ int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size)
     printf("Total Bytes Received from Server: %d\n", total_size);
     return success;
 }
-int receiveFileSizeFrom(int sockfd, int *received_packet) {
+int receiveFileNameSizeFrom(int sockfd, char *received_packet) {
     recv(sockfd, received_packet, 30, 0);
 }
 int receiveCommandFrom(int sockfd, char* received_packet) {
@@ -350,13 +316,15 @@ int main(int argc, char** argv) {
                     break;
                 case 3:
                     printf("Prepared to receive FILE SIZE.\n");
-                    int file_size; //Size of the file received
+                    char *fileNameSize = malloc(1000 * sizeof(char));
+                    int file_size;
                     int bytes_received;
-                    receiveFileSizeFrom(new_fd, &file_size);
-                    printf("File size received = %d\n", file_size);
+                    receiveFileNameSizeFrom(new_fd, fileNameSize);
+                    char *fileName = malloc(1000 * sizeof(char));
+                    extractFileNameSize(fileNameSize, &file_size, fileName);
+                    printf("Filename: %s | Size: %d\n",fileName, file_size);
                     if(receiveDataFrom(new_fd, file_packet, 41) == 1) {
                         printf("Bytes Received: %d - Size = %d\n", bytes_received, file_size);
-                        unpackData(file_packet, 27);
                         packetToFile(file_packet, file_size);
                         
                     }

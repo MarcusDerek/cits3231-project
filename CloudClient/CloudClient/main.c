@@ -20,7 +20,6 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include "clientCommands.h"
-#include "tpl.h"
 
 #define CLOUD_SERVER_PORT "9999"
 #define CLOUD_SERVER_ADDRESS "192.168.211.130"
@@ -85,9 +84,30 @@ int receiveDataFrom(int sockfd, char* received_packet, int received_packet_size)
     
 }
 
-void sendFileSizeDataTo(int sockfd, int sent_packet) {
+void sendFileSizeNameDataTo(int sockfd, char* sent_packet) {
     
-    int bytes_sent = send(sockfd, &sent_packet, 30, 0);
+    int bytes_sent = send(sockfd, sent_packet, 30, 0);
+}
+/**
+ * 
+ * @param filepath
+ * @return 
+ */
+char *extractFileName(char *filePath) {
+    char *copyFilePath = malloc(1000 * sizeof(char));
+    strcpy(copyFilePath, filePath);
+    char *pch;
+    char *fileName;
+    pch=strchr(copyFilePath,'/');
+    while (pch!=NULL) {
+      pch=strchr(pch+1,'/');
+      if(pch !=NULL) {
+          fileName = pch;
+          fileName++;
+      }
+    }
+    printf("Actual filename = %s\n", fileName);
+    return fileName;
 }
 
 int sendDataTo(int sockfd, char* sent_packet, int sent_packet_size) {
@@ -169,8 +189,6 @@ void communicateWithCloudServer(int sockfd) {
      * Used for verifying the user Command
      */
     int packet_size;
-    FILE_DATA *newFile;
-    size_t file_size;
     int option = 404; //Default error
     option = verifyUserCommand(userCommand);
     
@@ -215,19 +233,16 @@ void communicateWithCloudServer(int sockfd) {
             break;
         case 3: //-addFile
             sendDataTo(sockfd, "3", 5); //Trigger server to receive file
-            newFile = malloc(sizeof(FILE_DATA));
-            newFile->file_path = malloc(5000 * sizeof(char));
-            strcpy(newFile->file_path, addFile());
-            strcpy(newFile->file_buffer,compress_File_to_stream(&file_size, newFile->file_path));
-            newFile->size_of_file = file_size;
-            printf("Size of FILE AGAIN = %lu + path = %s\n", newFile->size_of_file, newFile->file_path);
-            sendFileSizeDataTo(sockfd, file_size);
-            tpl_node *tn;
-            tn = tpl_map("S(sii)", &newFile);
-            tpl_pack(tn, 0);
-            void *file_buffer;
-            tpl_dump(tn, TPL_MEM, &file_buffer, &file_size);
-            send_all_data(sockfd, file_buffer, file_size);
+            char *filePath = malloc(1000 * sizeof(char));
+            size_t file_size;
+            strcpy(filePath, addFile());
+            extractFileName(filePath);
+            char *fileBuffer = compress_File_to_stream(&file_size, filePath);
+            char *convertFileSize = malloc(100 *sizeof(char));
+            sprintf(convertFileSize,"%lu", file_size);
+            char *fileNameSize = concatSentence(0, convertFileSize, extractFileName(filePath));
+            sendFileSizeNameDataTo(sockfd, fileNameSize);
+            //send_all_data(sockfd, file_buffer, file_size);
             //tpl_free(tn);
             break;
         case 4: //-deleteFile
