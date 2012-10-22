@@ -23,16 +23,9 @@
 
 #define CLOUD_SERVER_PORT "9999"
 #define CLOUD_SERVER_ADDRESS "192.168.211.130"
-#define DEFAULT_SIZE 100;
-#define ERROR "ERROR"
+#define DEFAULT_SIZE 100
+#define ERROR 404
 #define MAX_FILE_SIZE 50000
-
-typedef struct {
-    char* file_buffer;
-    char* file_path;
-    size_t size_of_file;			// e.g.		-65
-} FILE_DATA;
-
 
 /**
  * For getting socket address, IPv4 or IPv6
@@ -191,18 +184,19 @@ void communicateWithCloudServer(int sockfd) {
     int packet_size;
     int option = 404; //Default error
     option = verifyUserCommand(userCommand);
+    if(option == ERROR) {
+        printf("Invalid Command. - Please retype your command or try -help.\n");
+        return;
+    }
     
     switch (option) {
-        case 0: //-exit
+        case 0: {//-exit
            printf("%s", processExitOption());
            exit(EXIT_SUCCESS);
            break;
-        case 1: //-registerNewAccount
+        }
+        case 1: {//-registerNewAccount
             strcpy(packet_data, registerNewAccount());
-            if(strcmp(packet_data, ERROR) == 0) {
-                printf("Error in CMD 1.\n");
-                return;
-            }
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
             if(sendDataTo(sockfd, packet_data, packet_size) == 1) {//Success SEND
@@ -216,17 +210,14 @@ void communicateWithCloudServer(int sockfd) {
                 printf("Error: Sending packet. -registerNewAccount\n"); 
             }
             break;
-        case 2://-login
+        }
+        case 2: {//-login
             strcpy(packet_data, loginToAccount());
-            if(strcmp(packet_data, ERROR) == 0) {
-                printf("Error in CMD 1.\n");
-                return;
-            }
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
             if(sendDataTo(sockfd, packet_data, packet_size) == 1) {//Success SEND
                 char *received_packet = malloc (1000 * sizeof(char));
-                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE REPLY
+                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success HANDLE REPLY
                     if(strcmp(received_packet,"1") == 0) {
                         printf("Login successful!\n");
                     }
@@ -235,7 +226,8 @@ void communicateWithCloudServer(int sockfd) {
                 printf("Error: Sending packet. -login\n"); 
             }
             break;
-        case 3: //-addFile
+        }
+        case 3: {//-addFile
             sendDataTo(sockfd, "3", 5); //Trigger server to receive file
             char *filePath = malloc(1000 * sizeof(char));
             size_t file_size;
@@ -244,11 +236,11 @@ void communicateWithCloudServer(int sockfd) {
             char *fileBuffer = compress_File_to_stream(&file_size, filePath);
             char *convertFileSize = malloc(100 *sizeof(char));
             sprintf(convertFileSize,"%lu", file_size);
-            char *fileNameSize = concatSentence(0, convertFileSize, extractFileName(filePath));
+            char *fileNameSize = concatSentence(0, convertFileSize, extractFileName(filePath)); //0 = null
             sendFileSizeNameDataTo(sockfd, fileNameSize);
             if(send_all_data(sockfd, fileBuffer, file_size) == 0) { //Success
                 char *received_packet = malloc (1000 * sizeof(char));
-                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success RECEIVE REPLY
+                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success HANDLE REPLY
                     if(strcmp(received_packet,"1") == 0) {
                         printf("Your file has been added to your storage!\n");
                     }
@@ -257,10 +249,26 @@ void communicateWithCloudServer(int sockfd) {
                 printf("Error: Sending packet. -addFile\n"); 
             }
             break;
-        case 4: //-deleteFile
+        }
+        case 4: {
+            strcpy(packet_data, deleteFile()); //Return filename to be deleted
+            packet_size = strlen(packet_data);
+            if(sendDataTo(sockfd, packet_data, packet_size) == 1) { //Success SEND
+                char *received_packet = malloc (1000 * sizeof(char));
+                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success HANDLE REPLY
+                    if(strcmp(received_packet,"1") == 0) {
+                        printf("Your file has been deleted from storage!\n");
+                    }
+                }
+            }else{
+                printf("Error: Sending packet. -addFile\n"); 
+            }
             break;
-        case 5: //-fetchFile
+        }
+        case 5: {//-fetchFile
+            
             break;
+        }     
         case 6: //-verifyFile
             break;
             

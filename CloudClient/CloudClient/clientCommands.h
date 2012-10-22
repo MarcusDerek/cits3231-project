@@ -15,6 +15,7 @@ int verifyUserCommand();
 char* registerNewAccount();
 char* loginToAccount();
 char* addFile();
+char* deleteFile();
 char* concatSentence(int command, char* sentence1, char* sentence2);
 
 

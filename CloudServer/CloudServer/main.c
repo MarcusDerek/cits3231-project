@@ -184,9 +184,6 @@ int processRegisterNewAccount(char* received_packet, int new_fd) {
 int loginToAccount(char *received_packet, int new_fd) {
     return 1;
 }
-int addFile(char* received_packet, int new_fd) {
-    //int status = convertPacketToFile(received_packet);
-}
 int addFileToCloud(int new_fd) {
     int success = 0;
     printf("Prepared to receive FILE SIZE.\n");
@@ -198,7 +195,7 @@ int addFileToCloud(int new_fd) {
     extractFileNameSize(fileNameSize, &file_size, fileName);
     printf("Filename: %s | Size: %d\n",fileName, file_size);
     char *file_packet = malloc(file_size * sizeof(char));
-    if(receiveDataFrom(new_fd, file_packet, file_size) == 1) { //success
+    if(receiveDataFrom(new_fd, file_packet, file_size) == 1) { //RECEIVING ACTUAL FILE DATA
         packetToFile(file_packet, file_size, fileName);
         success = 1;
     } else {
@@ -206,6 +203,12 @@ int addFileToCloud(int new_fd) {
         exit(EXIT_FAILURE);
     }
     return success;
+}
+int deleteFileFromCloud(char *received_packet) {
+    char *fileName = malloc(1000 * sizeof(char));
+    sscanf(received_packet, "%*d %s %*s", fileName);
+    //TO DO -- ADD BRYAN DELETE FILE HERE
+    printf("Delete file: %s\n", fileName);
 }
 
 int main(int argc, char** argv) {
@@ -318,9 +321,6 @@ int main(int argc, char** argv) {
                 exit(EXIT_FAILURE);
             }
             int userInputCommand;
-            /*
-             *  Exceptions
-             */
              /*
              * Determine which command is used
              */
@@ -331,8 +331,8 @@ int main(int argc, char** argv) {
             * This section is used to validate the commands
             */
             switch (userInputCommand) {
-                case 1:
-                    status = processRegisterNewAccount(received_packet, new_fd);
+                case 1: { //-registerNewAccount
+                    status = processRegisterNewAccount(received_packet, new_fd); //ie 1 Marcus 123456 - 1 = registerNewAccount
                     if(status == 1) { //1 == Pass, 0 == fail
                         sendDataTo(new_fd, "1", 10);
                         printf("-registerNewAccount: Success\n");
@@ -341,8 +341,9 @@ int main(int argc, char** argv) {
                         printf("-registerNewAccount: Fail\n");
                     }
                     break;
-                case 2:
-                    status = loginToAccount(received_packet, new_fd);
+                }
+                case 2: { //-login
+                    status = loginToAccount(received_packet, new_fd);//ie 2 Marcus 123456
                     if(status == 1) { //1 == Pass, 0 == fail
                         sendDataTo(new_fd, "1", 10);
                         printf("-login: Success\n");
@@ -351,7 +352,8 @@ int main(int argc, char** argv) {
                         printf("-login: Fail\n");
                     }
                     break;
-                case 3:
+                }
+                case 3: { //-addFile
                     status = addFileToCloud(new_fd);
                     if(status == 1) { //1 == Pass, 0 == fail
                         sendDataTo(new_fd, "1", 10);
@@ -361,6 +363,11 @@ int main(int argc, char** argv) {
                         printf("-addFile: Fail.\n");
                     }
                     break;
+                }
+                case 4: { //-deleteFile
+                    status = deleteFileFromCloud(received_packet);
+                    break;
+                }
                     
                     //status = addFile(received_packet, new_fd);
             }

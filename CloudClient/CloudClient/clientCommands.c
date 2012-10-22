@@ -113,8 +113,11 @@ char* registerNewAccount() { //1
     printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
     return output;
 }
-
-char * loginToAccount() {//2
+/**
+ * To log into the cloud server personal account
+ * @return the //ie 2 Marcus 123456
+ */
+char* loginToAccount() {//2
     char *userName = malloc(1000 * (sizeof(char)));
     char *password = malloc(1000 * (sizeof(char)));
     
@@ -128,14 +131,47 @@ char * loginToAccount() {//2
     printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
     return output;
 }
+/**
+ * AddFile command function
+ * @return the name of the file to be ADDED
+ */
 char* addFile() {
     char *fullPathName = malloc(1000 * (sizeof(char)));
-    char *password = malloc(1000 * (sizeof(char)));
-    
     char *output = malloc(1000 * sizeof(char));
     printf("-- Add File Command initiated --\n");
-    printf("Please specify the FULL path of the file you wish to upload below.\n File Path: ");
+    printf("Please specify the FULL path of the file you wish to UPLOAD.\nSpecify FilePath: ");
     scanf("%s", fullPathName);
     strcpy(output, fullPathName);
+    return output;
+}
+/**
+ * DeleteFile command function
+ * @return the name of the file to be DELETED
+ */
+char* deleteFile() {
+    char *fileName = malloc(1000 * (sizeof(char)));
+    char *output = malloc(1000 * (sizeof(char)));
+    
+    printf("-- Delete File Command initiated --\n");
+    printf("Please specify the FILENAME of the file that you wish to DELETE.\nSpecify FileName: ");
+    scanf("%s", fileName);
+    strcpy(output, fileName);
+    output = concatSentence(4, fileName, ""); //4 = deleteFile
+    return output;
+}
+/**
+ * Specify the filename that the user wants to download
+ * Only if the file exist in the server
+ * @return 
+ */
+char* fetchFile() {
+    char *fileName = malloc(1000 * (sizeof(char)));
+    char *output = malloc(1000 * (sizeof(char)));
+    
+    printf("-- Fetch File Command initiated --\n");
+    printf("Please specify the FILENAME of the file that you wish to DOWNLOAD.\nSpecify FileName: ");
+    scanf("%s", fileName);
+    strcpy(output, fileName);
+    output = concatSentence(5, fileName, ""); //5 = fetchFile
     return output;
 }
