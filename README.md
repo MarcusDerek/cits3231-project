@@ -8,16 +8,14 @@ Master = Only for final product
 Development - Prototype codes, pull WORKING codes from main development branch and create your own branch to work
 
 - Marcus Derek 11016403
-
+- Bryan Kho 20714477
+- Taiga Yano <xxxxxxxx>
 
 -----------------------------------------------------
 Functionality Development
 ----------------------------------------------------
--
--
--
--
--
+- Skeleton Code developed
+- 
 
 -----------------------------------------------------
 Architecture
