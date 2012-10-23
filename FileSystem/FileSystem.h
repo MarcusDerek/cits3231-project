@@ -14,8 +14,8 @@
 
 
 //FileSystem Call Functions
-void createUserDirectory(char* username,char* permission);
-void direcToUserDirectory(char* username);
+void createUserDirectory(char* username,int permission); //to be change to more simpler terms
+void directToUserDirectory(char* username);
 void addFileToDirectory(char* file,char* username);
 void deleteFileFromDirectory(char* filename);
 void checkFileExistance(char* filename);
