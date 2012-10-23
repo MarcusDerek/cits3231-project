@@ -11,6 +11,7 @@
 
 
 //FileSystem Variables
+ const char * const PATH = "/users/bryankho/desktop"; //test path
 
 
 //FileSystem Call Functions

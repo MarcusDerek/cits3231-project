@@ -14,19 +14,25 @@
 #include "FileSystem.h"
 
 /************
-createUserDirectory
+ createUserDirectory
  Creates an user directory that is accessible by that user only
  
- username - takes the name that was specified by the user before 
+ username - takes the name that was specified by the user before
  permission - sets the permission (private,public,etc...)
-
-************/
+ 
+ ************/
 void createUserDirectory(char* username, int permission)
 {
-    mode_t process_mask = umask(permission);
-    int result_code = mkdir(username, S_IRWXU | S_IRWXG | S_IRWXO);
-    printf("created directory %s\n ",username);
-    umask(process_mask);
+    if (chdir (PATH) == -1)
+    {
+        printf ("chdir failed - %s\n", strerror (errno));
+    }
+    else
+    {
+        mode_t process_mask = umask(permission);
+        int result_code = mkdir(username, S_IRWXU | S_IRWXG | S_IRWXO);
+        printf("created directory %s\n ",username);
+        umask(process_mask);
 }
 
 /***********
@@ -34,7 +40,7 @@ void createUserDirectory(char* username, int permission)
  ******/
 void directToUserDirectory(char* username)
 {
-
+    
 }
 
 /********
@@ -76,8 +82,6 @@ int main (void)
     //EXECUTE CODE HERE
     createUserDirectory("./testDirectory",0);
 }
-
-
 
 
 
