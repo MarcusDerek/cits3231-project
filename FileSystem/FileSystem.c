@@ -96,31 +96,48 @@ void addFileToDirectory(char* file, char* username)
     
 }
 
-    /**********
-     
-     *********/
-    void deleteFileFromDirectory(char* file)
+/**********
+ deleteFileFromDirectory
+ Deletes the file specified by the user
+ 
+ file : takes the location of the file
+ 
+ bugs : 1. need directory fixing like the others
+ 
+ *********/
+void deleteFileFromDirectory(char* filename, char* username)
+{
+    char buffer[50];
+    int n = 0;
+    n = sprintf(buffer, "/users/bryankho/desktop/%s", username); //path need to be change
+    //const char * const direction = "/users/bryankho/desktop";
+    if (chdir (buffer) == -1)
     {
-        
+        printf ("chdir failed - %s\n", strerror (errno));
     }
-    
-    
-    /********
-     
-     *********/
-    void checkFileExistance(char* filename)
+    else
     {
-        
+        remove(filename);
     }
+}
     
-    
-    /**********
+
+/********
      
-     *********/
-    void fetchListOfFiles(char* name)
-    {
-        
-    }
+ *********/
+void checkFileExistence(char* filename)
+{
+    
+}
+    
+
+/**********
+     
+ *********/
+void fetchListOfFiles(char* name)
+{
+    
+}
 
 /******
  Helper Methods
@@ -176,6 +193,7 @@ int copy_file(char* source, char* dest)
     int main (void)
     {
         //EXECUTE CODE HERE
-       //  createUserDirectory("20714477",0);
-        addFileToDirectory(filePath,"20714477");
+        //  createUserDirectory("20714477",0);
+        //addFileToDirectory(filePath,"20714477");
+        deleteFileFromDirectory(filePath3, "20714477");
     }
