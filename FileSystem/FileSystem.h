@@ -11,7 +11,7 @@
 
 
 //FileSystem Variables
- const char * const PATH = "/users/bryankho/desktop"; //test path
+ const char * const PATH = "/users/bryankho/desktop"; //path needs to be changed to accomodate 
 
 
 //FileSystem Call Functions
@@ -21,6 +21,8 @@ void addFileToDirectory(char* file,char* username);
 void deleteFileFromDirectory(char* filename);
 void checkFileExistance(char* filename);
 void fetchListOfFiles(char* username);
+int copy_file(char *old_filename, char  *new_filename);
+
 
 //BankServer Call Functions
 void checkUserBalance(char* username);

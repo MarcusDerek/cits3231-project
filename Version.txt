@@ -1,1 +1,4 @@
 0.1 - Filesystem started
+0.2 - Filesystem create and direct halfway complete
+0.2.1 - Bugs with specifying directory
+
