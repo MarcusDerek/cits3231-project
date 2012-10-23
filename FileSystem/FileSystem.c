@@ -16,15 +16,10 @@
 //#include <autoconf.h>
 #include "FileSystem.h"
 
-
-
 /*******
  NOTES : MARCUS & TAIGA
  - Make sure change the PATH TO ACCOMODATE YOUR OS as I have not been able to try to find a way to make sure it changes its directory to the one that is the file located at
  *******/
-
-
-
 
 /************
  createUserDirectory
@@ -77,23 +72,27 @@ void directToUserDirectory(char* username)
  addFileToDirectory
  Inputs an a file into the specified user directory
  
+ Method : Creates a file inside the directory and replaces it with the one that is intended
+ 
  username : takes the name of the specified user
  file: the file which you want to move
  
- bugs : NOT YET IMPLEMENTED
+ bugs : 1. fix file copying
+        2. directory need to be specified instead of using a known value
+        3. need to specify user directory better
      
  ********/
 void addFileToDirectory(char* file, char* username)
 {
-    /*
+    
     char buffer[50];
     int n = 0;
-    n = sprintf(buffer, "/users/bryankho/desktop/%s", username);
-    if(copy_file(file, buffer) == 0)
+   // n = sprintf(buffer, "/users/bryankho/desktop/%s", username);
+    if(copy_file(file, filePath2) == 0)
         printf("Copy Successful\n");
     else
         fprintf(stderr, "Error during copy!");
-     */
+     
     
 }
 
@@ -126,43 +125,57 @@ void addFileToDirectory(char* file, char* username)
 /******
  Helper Methods
  ******/
-/*
-int copy_file(char *old_filename, char  *new_filename)
+
+int copy_file(char* source, char* dest)
 {
-    FILE  *ptr_old, *ptr_new;
-    errno_t err = 0, err1 = 0;
-    int  a;
+    //int a;
+    //int b;
+    //char sourceFile[50];
+    //char destFile[50];
+    //a = sprintf(sourceFile, "%s", source);
+    //b = sprintf(destFile, "%s", dest);
     
-    err = fopen_s(&ptr_old, old_filename, "rb");
-    err1 = fopen_s(&ptr_new, new_filename, "wb");
+    size_t len = 0 ;
+   // const char a[] = "c:/a/a.exe" ;
+   // const char b[] = "d:/b/b.exe" ;
     
-    if(err != 0)
-        return  -1;
+    FILE *fp;
+    fp=fopen("/users/bryankho/desktop/20714477/file.txt","w");
     
-    if(err1 != 0)
+    char buffer[BUFSIZ] = { '\0' } ;
+    FILE* in = fopen( source, "rb" ) ;
+    FILE* out = fopen( dest, "wb" ) ;
+    if( in == NULL || out == NULL )
     {
-        fclose(ptr_old);
-        return  -1;
+        perror( "An error occured while opening files!!!" ) ;
+        in = out = 0 ;
     }
-    
-    while(1)
+    else    // add this else clause
     {
-        a  =  fgetc(ptr_old);
+        while( (len = fread( buffer, BUFSIZ, 1, in)) > 0 )
+        {
+            fwrite( buffer, BUFSIZ, 1, out ) ;
+        }
         
-        if(!feof(ptr_old))
-            fputc(a, ptr_new);
+        fclose(in) ;
+        fclose(out) ;
+        
+        if(remove(source) )
+        {
+            printf( "File successfully moved. Thank you for using this mini app" ) ;
+        }
         else
-            break;
+        {
+            printf( "An error occured in deleting the file!!!" ) ;
+        }
     }
-    
-    fclose(ptr_new);
-    fclose(ptr_old);
-    return  0;
+    return 0 ;
 }
- */
+ 
     
     int main (void)
     {
         //EXECUTE CODE HERE
        //  createUserDirectory("20714477",0);
+        addFileToDirectory(filePath,"20714477");
     }

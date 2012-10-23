@@ -11,7 +11,10 @@
 
 
 //FileSystem Variables
- const char * const PATH = "/users/bryankho/desktop"; //path needs to be changed to accomodate 
+ const char * const PATH = "/users/bryankho/desktop"; //path needs to be changed to accomodate
+ char* filePath = "/users/bryankho/desktop/testFile.rtf"; //testerFile pathway to test addFileToDirectory
+char* filePath2 = "/users/bryankho/desktop/file.txt"; //testerFile pathway to test addFileToDirectory
+
 
 
 //FileSystem Call Functions
