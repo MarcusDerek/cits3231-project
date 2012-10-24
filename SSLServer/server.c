@@ -15,10 +15,17 @@
 #include <sys/types.h>  
 #include <netinet/in.h>  
 #include <resolv.h>  
-#include "openssl/ssl.h"
-#include "openssl/err.h"
-#include "openssl/bio.h" 
-  
+
+#include "openssl/include/openssl/bio.h"
+#include "openssl/include/openssl/ssl.h"
+#include "openssl/include/openssl/err.h"
+
+#define CLOUD_SERVER_PORT "3230"  // the port users will be connecting to
+#define CLOUD_SERVER_ADDRESS "130.95.1.70"
+#define TESTPORT "9999" //Port for simulating cloud server
+#define BACKLOG 10     // how many pending connections queue will hold
+#define FILESERVER_AREA "/Users/MarcusDerek/Documents/UWA/Storage"
+#define MAX_FILE_SIZE 50000
 #define FAIL    -1  
   
 int OpenListener(int port) {
@@ -101,32 +108,31 @@ void ShowCerts(SSL* ssl)
         printf("No certificates.\n");  
 }  
   
-void Servlet(SSL* ssl) /* Serve the connection -- threadable */  
+void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */  
 {   char buf[1024];  
-    char reply[1024];  
+    char *reply = "Success!";  
     int sd, bytes;  
-    const char* HTMLecho="<html><body><pre>%s</pre></body></html>\n\n";  
   
-    if ( SSL_accept(ssl) == FAIL )     /* do SSL-protocol accept */  
-        ERR_print_errors_fp(stderr);  
-    else  
-    {  
+    if ( SSL_accept(ssl) == FAIL )  {
+        /* do SSL-protocol accept */  
+        ERR_print_errors_fp(stderr);
+        printf("Error OCCURED!\n");
+    }   
+    else {   
         ShowCerts(ssl);        /* get any certificates */  
-        bytes = SSL_read(ssl, buf, sizeof(buf)); /* get request */  
-        if ( bytes > 0 )  
-        {  
-            buf[bytes] = 0;  
-            printf("Client msg: \"%s\"\n", buf);  
-            sprintf(reply, HTMLecho, buf);   /* construct reply */
-            printf("Sending reply\n");
-            SSL_write(ssl, reply, strlen(reply)); /* send reply */  
-        }  
-        else  
-            ERR_print_errors_fp(stderr);  
+        while(1) {
+            printf("Prepared to receive:\n");
+            char *buf = malloc(1000 * sizeof(char));     
+            bytes = SSL_read(ssl, buf, sizeof(buf)); /* get request */
+            printf("Received: %s\n", buf);
+            bytes = SSL_write(ssl, reply, strlen(reply));
+        }
+
+        
     }  
-    sd = SSL_get_fd(ssl);       /* get socket connection */  
-    SSL_free(ssl);         /* release SSL state */  
-    close(sd);          /* close connection */  
+    //sd = SSL_get_fd(ssl);       /* get socket connection */  
+    //SSL_free(ssl);         /* release SSL state */  
+    //close(sd);          /* close connection */  
 }  
   
 int main(int count, char *strings[])  
@@ -145,16 +151,22 @@ int main(int count, char *strings[])
     ctx = InitServerCTX();        /* initialize SSL */  
     LoadCertificates(ctx, "mycert.pem", "mycert.pem"); /* load certs from server directory */  
     server = OpenListener(atoi(portnum));    /* create server socket */  
-    while (1) {   struct sockaddr_in addr;  
-        socklen_t len = sizeof(addr);  
-        SSL *ssl;  
-  
-        int client = accept(server, (struct sockaddr*)&addr, &len);  /* accept connection as usual */  
-        printf("Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));  
-        ssl = SSL_new(ctx);              /* get new SSL state with context */  
-        SSL_set_fd(ssl, client);      /* set connection socket to SSL state */  
-        Servlet(ssl);         /* service connection */  
-    }  
+    struct sockaddr_in addr;  
+    socklen_t len = sizeof(addr);  
+    SSL *ssl;  
+
+    int client = accept(server, (struct sockaddr*)&addr, &len);  /* accept connection as usual */  
+    printf("Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));  
+    ssl = SSL_new(ctx);              /* get new SSL state with context */
+    BIO* sslclient = BIO_new_socket(client, BIO_NOCLOSE);
+    SSL_set_bio(ssl, sslclient, sslclient);
+    //BIO_set_nbio(sslclient, 0);
+    //SSL_set_fd(ssl, client);      /* set connection socket to SSL state */    
+    printf("Setting up done.\n");
+    while(1) {
+        
+        serviceConnection(ssl);         /* service connection */  
+    } 
     close(server);          /* close server socket */  
     SSL_CTX_free(ctx);         /* release context */  
 }  
