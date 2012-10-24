@@ -18,7 +18,7 @@
 #include <sys/socket.h>  
 #include <resolv.h>  
 #include <netdb.h>
-#include "clientCommands.h"
+#include "commands.h"
   
 #define CLOUD_SERVER_PORT "9999"
 #define CLOUD_SERVER_ADDRESS "192.168.211.130"
@@ -210,6 +210,35 @@ int receiveDataFrom(SSL *ssl, char* received_packet, int received_packet_size) {
     return success;
     
 }
+/**
+ * 
+ * @param filepath
+ * @return 
+ */
+char *extractFileName(char *filePath) {
+    char *copyFilePath = malloc(1000 * sizeof(char));
+    strcpy(copyFilePath, filePath);
+    char *pch;
+    char *fileName;
+    pch=strchr(copyFilePath,'/');
+    while (pch!=NULL) {
+      pch=strchr(pch+1,'/');
+      if(pch !=NULL) {
+          fileName = pch;
+          fileName++;
+      }
+    }
+    printf("Actual filename = %s\n", fileName);
+    return fileName;
+}
+/**
+ * Sends the File size and name to the Server
+ * @param ssl
+ */
+void sendFileSizeNameDataTo(SSL *ssl, char *sent_packet) {
+    
+    int bytes_sent = SSL_write(ssl, sent_packet,30);
+}
 void processUserInputs(SSL *ssl) {
     char *packet_data = malloc(1000 * sizeof(char));
     printf("Input Command: ");
@@ -274,10 +303,10 @@ void processUserInputs(SSL *ssl) {
             char *convertFileSize = malloc(100 *sizeof(char));
             sprintf(convertFileSize,"%lu", file_size);
             char *fileNameSize = concatSentence(0, convertFileSize, extractFileName(filePath)); //0 = null
-            sendFileSizeNameDataTo(sockfd, fileNameSize);
-            if(send_all_data(sockfd, fileBuffer, file_size) == 0) { //Success
+            sendFileSizeNameDataTo(ssl, fileNameSize);
+            if(send_all_data(ssl, fileBuffer, file_size) == 0) { //Success
                 char *received_packet = malloc (1000 * sizeof(char));
-                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success HANDLE REPLY
+                if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success HANDLE REPLY
                     if(strcmp(received_packet,"1") == 0) {
                         printf("Your file has been added to your storage!\n");
                     }
@@ -290,9 +319,9 @@ void processUserInputs(SSL *ssl) {
         case 4: {
             strcpy(packet_data, deleteFile()); //Return filename to be deleted
             packet_size = strlen(packet_data);
-            if(sendDataTo(sockfd, packet_data, packet_size) == 1) { //Success SEND
+            if(sendDataTo(ssl, packet_data, packet_size) == 1) { //Success SEND
                 char *received_packet = malloc (1000 * sizeof(char));
-                if(receiveDataFrom(sockfd, received_packet, 30000) == 1) {//Success HANDLE REPLY
+                if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success HANDLE REPLY
                     if(strcmp(received_packet,"1") == 0) {
                         printf("Your file has been deleted from storage!\n");
                     }
@@ -343,18 +372,9 @@ int main(int count, char *strings[])
         ERR_print_errors_fp(stderr);  
     else  {
         ShowCerts(ssl);        /* get any certs */
+        printf("%s\n", get_IntroMsg());
         while (1) {
-            processUserInputs();
-//            printf("Connected with %s encryption\n", SSL_get_cipher(ssl)); //Mandatory
-//            printf("Input Command: ");
-//            char *userCommand = malloc(100 * sizeof(char));
-//            scanf("%s", userCommand);
-//            SSL_write(ssl, userCommand, strlen(userCommand));   /* encrypt & send message */ 
-//            char *receive_reply = malloc(1000 * sizeof(char));
-//            bytes = SSL_read(ssl, receive_reply, 9); /* get reply & decrypt */
-//            printf("Received: %s\n", receive_reply);
-//            free(receive_reply);
-//            //SSL_free(ssl);        /* release connection state */ 
+            processUserInputs(ssl);
         }
     }  
     close(server);         /* close socket */  

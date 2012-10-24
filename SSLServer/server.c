@@ -27,7 +27,7 @@
 #define FILESERVER_AREA "/Users/MarcusDerek/Documents/UWA/Storage"
 #define MAX_FILE_SIZE 50000
 #define FAIL    -1  
-  
+/* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/  
 int OpenListener(int port) {
     int sd;  
     struct sockaddr_in addr;  
@@ -107,7 +107,166 @@ void ShowCerts(SSL* ssl)
     else  
         printf("No certificates.\n");  
 }  
-  
+/* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/  
+/** 
+ * @param fileNameSize
+ * @param filesize
+ * @param fileName
+ */
+void extractFileNameSize(char *fileNameSize, int *filesize, char *fileName) {
+    char *tempFileSize = malloc(100 * sizeof(char));
+    sscanf(fileNameSize, "%*d %s %s",tempFileSize, fileName);
+    *filesize = atoi(tempFileSize);
+}
+/**
+ * Packs the file into the proper working format
+ * @param packet - the data packet
+ * @param size - size of file
+ * @param fileName - name of file
+ */
+void packetToFile(char *packet, int size, char *fileName) { 
+    //Extract File
+    FILE *pFile;
+    char *storageFilePath = malloc(1000 * sizeof(char));
+    strcat(storageFilePath,"Storage/"); 
+    strcat(storageFilePath,fileName);
+    pFile = fopen(storageFilePath, "wb");
+    fwrite(packet, 1, size, pFile);
+    fclose(pFile);
+    printf("File created.\n");
+}
+/**
+ * Receive Data from Cloud. Use for files
+ * @param ssl - ssl socket
+ * @param received_packet - packet data
+ * @param received_packet_size - size of packet
+ * @return 1 success, 0 otherwise
+ */
+int receiveDataFrom(SSL *ssl, char* received_packet, int received_packet_size) {
+    int bytes_received;
+    int total_size = 0;
+    int success = 0;
+    while(bytes_received != received_packet_size) {
+        bytes_received = SSL_read(ssl, received_packet + total_size, received_packet_size); //Receive First Line @ Loop 0
+        total_size = total_size + bytes_received; //Increment pointer to add additional data
+        printf("%d bytes received.\n", total_size);
+        if(bytes_received == 0) {
+                printf("File transfer complete.\n");
+                break;
+        }
+        if(bytes_received == -1) {
+                printf("Error receiving file.\n");
+                break;
+        }
+        if(total_size == received_packet_size) {
+            success = 1;
+            break;
+        }
+    }
+    printf("Total Bytes Received from Server: %d\n", total_size);
+    return success;
+}
+/**
+ * Receive the file name and size used to receive actual file
+ * @param sockfd
+ * @param received_packet
+ * @return 
+ */
+int receiveFileNameSizeFrom(SSL *ssl, char *received_packet) {
+    SSL_read(ssl, received_packet, 30);
+}
+/** 
+ * @param sockfd
+ * @param received_packet
+ * @return 
+ */
+int receiveCommandFrom(SSL *ssl, char* received_packet) {
+    int success = 1;
+    int bytes_received = SSL_read(ssl, received_packet, 30);
+    if(bytes_received == 0) {
+        printf("Connection terminated abruptly.\n");
+        exit(EXIT_FAILURE);
+    }
+    return success;
+}
+/**
+ * @param ssl - SSL socket
+ * @param sent_packet - packet data
+ * @param sent_packet_size - size of data
+ * @return 1 success, 0 otherwise
+ */
+int sendDataTo(SSL *ssl, char* sent_packet, int sent_packet_size) {
+    int success = 0;
+    int bytes_sent = 0;
+    while (bytes_sent < sent_packet_size) {
+        bytes_sent = SSL_write(ssl, sent_packet, sent_packet_size);
+    }
+    if(bytes_sent >= sent_packet_size) {
+        success = 1;
+    }
+    printf("Server: Packet sent successful.\n");
+    return success;
+}
+/**
+ * BRYAN TO DO
+ * @param userName
+ */
+void createUserHomeDirectory(char* userName) {
+   char* fullPathName = malloc(1000 * sizeof(char));
+   sprintf(fullPathName,"%s/%s", FILESERVER_AREA, userName);
+   mkdir(fullPathName,0777);
+   printf("Created Directory at: %s\n", fullPathName);
+}
+/**
+ * Register new Account
+ * @param received_packet - packet data
+ * @return 1 success, 0 otherwise
+ */
+int processRegisterNewAccount(char* received_packet) {
+    char *userName = malloc(100 * sizeof(char));
+    char *password = malloc(100 * sizeof(char));
+    sscanf(received_packet, "%*d %s %s", userName, password);
+    printf("Registering user - %s\n", userName);
+    createUserHomeDirectory(userName); //BRYAN - return pass or fail
+    
+    int pass = 1;
+    int fail = 0;
+    return pass; //NEED TO CHANGE
+}
+int loginToAccount(char *received_packet, SSL *ssl) {
+    return 1;
+}
+/**
+ * Add files to the cloud server
+ * @param ssl - ssl socket
+ * @return 1 success, 0 otherwise
+ */
+int addFileToCloud(SSL *ssl) {
+    int success = 0;
+    printf("Prepared to receive FILE SIZE.\n");
+    char *fileNameSize = malloc(1000 * sizeof(char));
+    int file_size;
+    int bytes_received;
+    receiveFileNameSizeFrom(ssl, fileNameSize);
+    char *fileName = malloc(1000 * sizeof(char));
+    extractFileNameSize(fileNameSize, &file_size, fileName);
+    printf("Filename: %s | Size: %d\n",fileName, file_size);
+    char *file_packet = malloc(file_size * sizeof(char));
+    if(receiveDataFrom(ssl, file_packet, file_size) == 1) { //RECEIVING ACTUAL FILE DATA
+        packetToFile(file_packet, file_size, fileName);
+        success = 1;
+    } else {
+        printf("Error occurred: addFileToCloud()\n");
+        exit(EXIT_FAILURE);
+    }
+    return success;
+}
+int deleteFileFromCloud(char *received_packet) {
+    char *fileName = malloc(1000 * sizeof(char));
+    sscanf(received_packet, "%*d %s %*s", fileName);
+    //TO DO -- ADD BRYAN DELETE FILE HERE
+    printf("Delete file: %s\n", fileName);
+}
 void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */  
 {   char buf[1024];  
     char *reply = "Success!";  
@@ -121,11 +280,66 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
     else {   
         ShowCerts(ssl);        /* get any certificates */  
         while(1) {
-            printf("Prepared to receive:\n");
-            char *buf = malloc(1000 * sizeof(char));     
-            bytes = SSL_read(ssl, buf, sizeof(buf)); /* get request */
-            printf("Received: %s\n", buf);
-            bytes = SSL_write(ssl, reply, strlen(reply));
+            char *received_packet = malloc(1000 * sizeof(char));
+            int file_size;
+            char *sent_packet = malloc(1000 * sizeof(char));
+
+            if(receiveCommandFrom(ssl, received_packet) == 1) {
+                printf("Received MSG: %s\n", received_packet);
+            } else {
+                printf("Error: Receive invalid command!\n");
+                exit(EXIT_FAILURE);
+            }
+            int userInputCommand;
+             /*
+             * Determine which command is used
+             */
+            
+            int status;
+            sscanf(received_packet, "%d", &userInputCommand);
+            /**
+            * This section is used to validate the commands
+            */
+            switch (userInputCommand) {
+                case 1: { //-registerNewAccount
+                    status = processRegisterNewAccount(received_packet); //ie 1 Marcus 123456 - 1 = registerNewAccount
+                    if(status == 1) { //1 == Pass, 0 == fail
+                        sendDataTo(ssl, "1", 10);
+                        printf("-registerNewAccount: Success\n");
+                    } else {
+                        sendDataTo(ssl, "0", 10);
+                        printf("-registerNewAccount: Fail\n");
+                    }
+                    break;
+                }
+                case 2: { //-login
+                    status = loginToAccount(received_packet, ssl);//ie 2 Marcus 123456
+                    if(status == 1) { //1 == Pass, 0 == fail
+                        sendDataTo(ssl, "1", 10);
+                        printf("-login: Success\n");
+                    } else {
+                        sendDataTo(ssl, "0", 10);
+                        printf("-login: Fail\n");
+                    }
+                    break;
+                }
+                case 3: { //-addFile
+                    status = addFileToCloud(ssl);
+                    if(status == 1) { //1 == Pass, 0 == fail
+                        sendDataTo(ssl, "1", 10);
+                        printf("-addFile: Success\n");
+                    } else {
+                        sendDataTo(ssl, "0", 10);
+                        printf("-addFile: Fail.\n");
+                    }
+                    break;
+                }
+                case 4: { //-deleteFile
+                    status = deleteFileFromCloud(received_packet);
+                    break;
+                }
+                    
+            }
         }
 
         
@@ -134,7 +348,8 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
     //SSL_free(ssl);         /* release SSL state */  
     //close(sd);          /* close connection */  
 }  
-  
+
+
 int main(int count, char *strings[])  
 {   SSL_CTX *ctx;  
     int server;  
@@ -163,8 +378,8 @@ int main(int count, char *strings[])
     //BIO_set_nbio(sslclient, 0);
     //SSL_set_fd(ssl, client);      /* set connection socket to SSL state */    
     printf("Setting up done.\n");
+    /* Put all processes in the WHILE LOOP */
     while(1) {
-        
         serviceConnection(ssl);         /* service connection */  
     } 
     close(server);          /* close server socket */  

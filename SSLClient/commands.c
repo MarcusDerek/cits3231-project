@@ -1,5 +1,5 @@
 //
-//  clientCommands.c
+//  commands.c
 //
 //  Created by Lion User on 14/10/2012.
 //  Copyright (c) 2012 __MyCompanyName__. All rights reserved.
