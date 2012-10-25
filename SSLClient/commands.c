@@ -189,6 +189,10 @@ char* verifyFile() {
     return output;
 }
 char* listAllFiles() {
+    char *output = malloc(1000 * (sizeof(char)));
     
+    printf("-- Listing All Files Command initiated --\n");
+    output = concatSentence(7, "", ""); //5 = fetchFile
+    return output;
 }
 

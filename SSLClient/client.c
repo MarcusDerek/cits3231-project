@@ -398,6 +398,24 @@ int verifyFileOnServer(SSL *ssl) {
         return 0;// fail 
     }
 }
+int listAllFilesOnServer(SSL *ssl) {
+    char *packet_data = malloc(1000 * sizeof(char));
+    strcpy(packet_data, listAllFiles()); //Return command to retrieve list of files
+    int packet_size = strlen(packet_data);
+    if(sendDataTo(ssl, packet_data, packet_size) == 1) { //Success SEND
+        char *received_packet = malloc (100000 * sizeof(char)); //PREPARE TO RECEIVE LIST OF FILES. MIGHT BE HUGE
+        if(receiveDataFrom(ssl, received_packet, 100000) == 1) {//Success HANDLE REPLY
+            if(strcmp(received_packet,"1") == 0) {
+                return 1; //success
+            }
+            else {
+                return 0; //fail
+            }
+        }
+    }else{
+        return 0;// fail 
+    }
+}
 /**
  * Access to this function is allowed for anyone. No logged in required
  * @param ssl
@@ -478,6 +496,11 @@ int processCommonInputs(SSL *ssl) {
             return logged_in;
         }     
         case 6: {//-verifyFile
+            printf("Unable to use -verifyFile as you are NOT logged in!\n");
+            logged_in = 0;
+            return logged_in;
+        }
+        case 7: {//-listAllFiles
             printf("Unable to use -verifyFile as you are NOT logged in!\n");
             logged_in = 0;
             return logged_in;
@@ -573,7 +596,15 @@ void processLoggedInUserInputs(SSL *ssl) {
             break;
         }
         case 7: {//listAllFiles
-            
+            int status = 0;
+            status = listAllFilesOnServer(ssl);
+            if(status == 1) {
+                printf("Your files have been listed successfully.\n");
+            }
+            else {
+                printf("Error: Listing files. -listAllFiles\n");
+            }
+            break;
         }
         case 99: {//-help
             printf("%s", get_HelpList());

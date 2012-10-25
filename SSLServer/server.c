@@ -408,6 +408,19 @@ int fetchFileFromCloud(SSL *ssl, char *received_packet) {
         return 0;
     }
 }
+int listAllFilesOnCloud() {
+    //RETURN LIST OF FILES
+    //char *listOfFiles = returnListofFiles();
+//    if(send_all_data(ssl, listOfFiles, strlen(listOfFiles)) == 0) { //Success
+//        printf("Fetch success!\n");
+//        return 1;
+//    }
+//    else {
+//        printf("Fetch fail!\n");
+//        return 0;
+//    }
+    return 1;// TEMP
+}
 
 /** 
  * Main bulk of servicing the incomming connection
@@ -514,7 +527,7 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
                     break;
                 }
                 case 7: {//-listAllFiles
-                    
+                    status = listAllFilesOnCloud();
                 }
                     
             }
