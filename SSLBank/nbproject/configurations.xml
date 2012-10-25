@@ -12,7 +12,7 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <itemPath>main.c</itemPath>
+      <itemPath>bank.c</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
                    displayName="Test Files"
@@ -34,6 +34,11 @@
         <compilerSet>default</compilerSet>
       </toolsSet>
       <compileType>
+        <cTool>
+          <incDir>
+            <pElem>openssl</pElem>
+          </incDir>
+        </cTool>
       </compileType>
     </conf>
     <conf name="Release" type="1">
