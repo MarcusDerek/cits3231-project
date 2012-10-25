@@ -14,7 +14,8 @@
 #include <sys/socket.h>  
 #include <sys/types.h>  
 #include <netinet/in.h>  
-#include <resolv.h> 
+#include <resolv.h>
+#include "FileSystem.h"
 
 //#include "openssl/include/openssl/bio.h"
 //#include "openssl/include/openssl/ssl.h"
@@ -302,12 +303,12 @@ void sendFileSizeNameDataTo(SSL *ssl, char *sent_packet) {
  * BRYAN TO DO
  * @param userName
  */
-void createUserHomeDirectory(char* userName) {
-   char* fullPathName = malloc(1000 * sizeof(char));
-   sprintf(fullPathName,"%s/%s", FILESERVER_AREA, userName);
-   mkdir(fullPathName,0777);
-   printf("Created Directory at: %s\n", fullPathName);
-}
+//void createUserHomeDirectory(char* userName) {
+//   char* fullPathName = malloc(1000 * sizeof(char));
+//   sprintf(fullPathName,"%s/%s", FILESERVER_AREA, userName);
+//   mkdir(fullPathName,0777);
+//   printf("Created Directory at: %s\n", fullPathName);
+//}
 /**
  * Register new Account
  * @param received_packet - packet data
@@ -318,7 +319,7 @@ int processRegisterNewAccount(char* received_packet) {
     char *password = malloc(100 * sizeof(char));
     sscanf(received_packet, "%*d %s %s", userName, password);
     printf("Registering user - %s\n", userName);
-    createUserHomeDirectory(userName); //BRYAN - return pass or fail
+    createUserDirectory(userName); //BRYAN - return pass or fail
     
     int pass = 1;
     int fail = 0;
@@ -361,6 +362,8 @@ int addFileToCloud(SSL *ssl) {
         printf("Error occurred: addFileToCloud()\n");
         exit(EXIT_FAILURE);
     }
+    printf("Moving file to directory %s\n", LOGGED_IN_AS_USERNAME);
+    addFileToDirectory(fileName, LOGGED_IN_AS_USERNAME);
     return success;
 }
 /**
@@ -371,7 +374,7 @@ int addFileToCloud(SSL *ssl) {
 int deleteFileFromCloud(char *received_packet) {
     char *fileName = malloc(1000 * sizeof(char));
     sscanf(received_packet, "%*d %s %*s", fileName);
-    //TO DO -- ADD BRYAN DELETE FILE HERE
+    deleteFileFromDirectory(fileName, LOGGED_IN_AS_USERNAME);
     printf("Delete file: %s\n", fileName);
 }
 /**
@@ -396,7 +399,11 @@ int fetchFileFromCloud(SSL *ssl, char *received_packet) {
     sscanf(received_packet, "%*d %s %*s", fileName);
     char *filePath = malloc(1000 * sizeof(char));
     //sprintf(filePath, "Storage/%s/%s", LOGGED_IN_AS_USERNAME, fileName); //UNCOMMENT WITH REAL ACCOUNT
-    sprintf(filePath, "Storage/%s", fileName);
+    if(checkFileExistence(fileName, LOGGED_IN_AS_USERNAME) == 0) { //Not found
+        printf("File not found!!\n");
+        return;
+    }
+    sprintf(filePath, "Storage/%s/%s",LOGGED_IN_AS_USERNAME, fileName);
     size_t file_size;
     char *fileBuffer = compress_File_to_stream(&file_size, filePath); //Specify filepath and retrieve filesize
     char *fileSizeName = malloc(1000 * sizeof(char));
@@ -412,19 +419,7 @@ int fetchFileFromCloud(SSL *ssl, char *received_packet) {
         return 0;
     }
 }
-int listAllFilesOnCloud() {
-    //RETURN LIST OF FILES
-    //char *listOfFiles = returnListofFiles();
-//    if(send_all_data(ssl, listOfFiles, strlen(listOfFiles)) == 0) { //Success
-//        printf("Fetch success!\n");
-//        return 1;
-//    }
-//    else {
-//        printf("Fetch fail!\n");
-//        return 0;
-//    }
-    return 1;// TEMP
-}
+
 SSL* acceptClientConnection(int count, char *strings[]) {
     SSL_CTX *ctx;  
     int server;  
@@ -576,7 +571,9 @@ void serviceConnection(SSL* sslClient, SSL* sslBank) {/* Serve the connection --
                     break;
                 }
                 case 7: {//-listAllFiles
-                    status = listAllFilesOnCloud();
+                    char *listOfFiles = fetchListOfFiles(LOGGED_IN_AS_USERNAME);
+                    sendDataTo(sslClient, listOfFiles, strlen(listOfFiles));
+                        
                     break;
                 }
                 case 8: { //-buyCloudMoney (Both server and bank attention required.

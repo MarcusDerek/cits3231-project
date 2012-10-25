@@ -407,12 +407,8 @@ int listAllFilesOnServer(SSL *ssl) {
     if(sendDataTo(ssl, packet_data, packet_size) == 1) { //Success SEND
         char *received_packet = malloc (100000 * sizeof(char)); //PREPARE TO RECEIVE LIST OF FILES. MIGHT BE HUGE
         if(receiveDataFrom(ssl, received_packet, 100000) == 1) {//Success HANDLE REPLY
-            if(strcmp(received_packet,"1") == 0) {
-                return 1; //success
-            }
-            else {
-                return 0; //fail
-            }
+            printf("%s", received_packet);
+            return 1;
         }
     }else{
         return 0;// fail 
