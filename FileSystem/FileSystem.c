@@ -1,6 +1,6 @@
 //
 //  FileSystem.c
-//  CloudClient
+//  FileSystem
 //
 //  Created by Bryan Kho on 14/10/2012.
 //  Copyright (c) 2012 . All rights reserved.
@@ -20,60 +20,33 @@
 #include <locale.h>
 #include <langinfo.h>
 #include <stdint.h>
-//#include <config.h>
-//#include <autoconf.h>
+
 #include "FileSystem.h"
 
-/*******
- NOTES : MARCUS & TAIGA
- - Make sure change the PATH TO ACCOMODATE YOUR OS as I have not been able to try to find a way to make sure it changes its directory to the one that is the file located at
- *******/
-
-/************
+/**
  createUserDirectory
- Creates an user directory that is accessible by that user only
+ Creates a folder for the specified user
  
- username - takes the name that was specified by the user before
- permission - sets the permission (private,public,etc...)
- 
- bugs :
- 
- ************/
+ @username Takes the name that is specified by the user
+ @permission sets the permission
+ */
+
 void createUserDirectory(char* username, int permission)
 {
-    /*if (chdir (PATH) == -1)
-    {
-        printf ("chdir failed - %s\n", strerror (errno));
-    }
-    else
-    { 
-    char pathing[80];
-    strcat(pathing, "Storage/");
-    strcat(pathing, username);
-        mode_t process_mask = umask(permission);
-        int result_code = mkdir(pathing, S_IRWXU | S_IRWXG | S_IRWXO);
-        printf("created directory %s\n ",username);
-        umask(process_mask);
-    }
-     */
-    
     char* pathing = malloc(1000 * sizeof(char));
-    //sprintf(fullPathName,"%s/%s", FILESERVER_AREA, userName);
     strcat(pathing, "Storage/");
     strcat(pathing, username);
     mkdir(pathing,permission);
-   // printf("Created Directory at: %s\n", fullPathName);
 }
 
-/***********
+/**
  directToUserDirectory
- Directs the user to their user directory
+ Brings the user to its directory
  
- username : takes the name of the specified user
- 
- bugs : 1. needs to specify user directory better.
-     
-******/
+ @username Takes the name that is specified by the user
+
+ */
+
 void directToUserDirectory(char* username)
 {
     char buffer[50];
@@ -87,63 +60,44 @@ void directToUserDirectory(char* username)
     
 }
 
-/********
+/**
  addFileToDirectory
- Inputs an a file into the specified user directory
+ Moves the file into the directory (copying)
  
- Method : Creates a file inside the directory and replaces it with the one that is intended
+ @file Takes the name of the file
+ @username Takes the name that is specified by the user
  
- username : takes the name of the specified user
- file: the file which you want to move
- 
- bugs : 1. fix file copying
-        2. directory need to be specified instead of using a known value
-        3. need to specify user directory better
-     
- ********/
+ */
+
 void addFileToDirectory(char* file, char* username)
 {
-  //  char memory[200];
-  //  memory = file;
-    char* base = malloc(1000 * sizeof(char));
-  //  printf("here2\n");
-     *base =  basename(file);
-   // printf(base);
-   // printf("\n");
-   // printf("here5\n");
-    char* buffer = malloc(1000 * sizeof(char));
-    //int n = 0;
+    int result;
     
-   // printf("here4\n");
-    FILE *fileCopied;
- 
-   // printf("here3\n");
-    strcat(buffer,"Storage/");
-    strcat(buffer,username);
-    strcat(buffer,"/");
-   // printf("this is the error 2\n");
-    strcat(buffer,base);
-   // printf("this is the error\n");
-    fileCopied = fopen(buffer,"W+"); // TO CREATE THE NEW FILE
-   // n = sprintf(buffer, "/users/bryankho/desktop/%s", username);
+    char* source = malloc(1000 * sizeof(char));
+    source = file;
     
-    //NEED TO CREATE AN EXACT SAME FILE AT THE USER DIRECTORY
-    //printf("here1\n");
-    if(copyFiles(file, buffer) == 0)
-        printf("Copy Successful\n");
+    char* destination = malloc(1000 * sizeof(char));
+    strcat(destination,"Storage/");
+    strcat(destination,username);
+    
+    result= rename( source , destination );
+    
+    if ( result == 0 )
+        puts ( "File successfully renamed" );
     else
-        fprintf(stderr, "Error during copy!");
-    
+        perror( "Error renaming file" );
+        
 }
 
-/**********
+/**
  deleteFileFromDirectory
- Deletes the file specified by the user
+ Delete the file in the directory
+
+ @filename Takes the name of the file
+ @username Takes the name that is specified by the user
  
- file : takes the location of the file
- 
- bugs :
- *********/
+ */
+
 void deleteFileFromDirectory(char* filename, char* username)
 {
     char filePathing[100];
@@ -152,29 +106,18 @@ void deleteFileFromDirectory(char* filename, char* username)
     strcat(filePathing,"/");
     strcat(filePathing,filename);
     remove(filePathing);
-  
-    /*
-    char buffer[50];
-    int n = 0;
-    n = sprintf(buffer, "Storage/%s", username); //path need to be change
-    //const char * const direction = "/users/bryankho/desktop";
-    if (chdir (buffer) == -1)
-    {
-        printf ("chdir failed - %s\n", strerror (errno));
-    }
-    else
-    {
-        remove(filePathing);
-    }
-     */
 }
-    
 
-/********
- 1. to do find files
-     
- *********/
-void checkFileExistence(char* filename, char* username)
+/**
+ checkFileExistence
+ Check the existence of the file in the diretory
+ 
+ @filename Takes the name of the file
+ @username Takes the name that is specified by the user
+ 
+ */
+
+int checkFileExistence(char* filename, char* username)
 {
     char filePathing[100];
     strcat(filePathing,"Storage/");
@@ -182,52 +125,42 @@ void checkFileExistence(char* filename, char* username)
     strcat(filePathing,"/");
     strcat(filePathing,filename);
     
-    
     struct stat st;
-    //if(stat("/tmp",&st) == 0)
-      //  printf(" /tmp is present\n");
     if (stat(filePathing,&st) == -1)
     {
-        printf("could not find file\n");
-        //return false;
+        return 0;
     } else {
-        printf("FOUND IT\n");
-        //return true;
+        return 1;
     }
 }
 
+/**
+ fetchListOfFiles
+ Prints all the file names into storage/list.txt
+ 
+ @username Takes the name that is specified by the user
+ 
+ */
 
-/**********
-     
- 1. skip first two pointers
- *********/
 void fetchListOfFiles(char* username)
 {
-   // char* base = malloc(1000 * sizeof(char));
     char* filePathing = malloc(1000 * sizeof(char));
     strcat(filePathing,"Storage/");
     strcat(filePathing,username);
     
     DIR *dirp;
     dirp = opendir(filePathing);
-    //dirp = opendir(PATH);
   
-    
     char* data = malloc(1000 * sizeof(char));
     struct dirent *dp;
-   //   printf("here\n");
+
     while ((dp = readdir(dirp)) != NULL)
     {
-                              // printf("here\n");
         struct stat statbuf;
         stat(dp->d_name, &statbuf);
         printf("%s\n",dp->d_name);
-       // data = malloc(1000 * sizeof(char));
-       // *data = malloc(1000 * sizeof(char));
         strcat(data,dp->d_name);
         strcat(data,"\n");
-       // data++;
-        
     }
     
     strcat(filePathing,"/list.txt");
@@ -240,9 +173,14 @@ void fetchListOfFiles(char* username)
     }
 }
 
-/*****
+/**
+ addToPasswordFile
+ Add new Password and Username into passwordlist.txt
  
- *****/
+ @username Takes the name that is specified by the user
+ @password Takes the password specified
+ 
+ */
 
 int addToPasswordFile(char* username, char* password)
 {
@@ -250,26 +188,25 @@ int addToPasswordFile(char* username, char* password)
     
     if( checker == 1 )
     {
-        printf("fail, since an user with the same name is already in here\n");
         return 0;
     }
     
     char* filePathing = malloc(1000 * sizeof(char));
     char* data = malloc(1000* sizeof(char));
-  //  strcat(filePathing,"Storage/");
-   // strcat(filePathing,username);
-   // strcat(filePathing,"/");
+    
     strcat(data, username);
     strcat(data, " ");
     strcat(data, password);
     strcat(data,"\n");
     strcat(filePathing,"Password/passwordlist.txt");
+    
     FILE *fp = fopen(filePathing, "ab");
     if (fp != NULL)
     {
         fputs(data, fp);
         fclose(fp);
     }
+    
     return 1;
 }
 
@@ -282,18 +219,8 @@ int addToPasswordFile(char* username, char* password)
 
 int copy_file(char* source, char* dest)
 {
-    //int a;
-    //int b;
-    //char sourceFile[50];
-    //char destFile[50];
-    //a = sprintf(sourceFile, "%s", source);
-    //b = sprintf(destFile, "%s", dest);
-    
     size_t len = 0 ;
-   // const char a[] = "c:/a/a.exe" ;
-   // const char b[] = "d:/b/b.exe" ;
-    
-    
+
     source;
     FILE *fp;
     fp=fopen(source,"w");
@@ -331,11 +258,8 @@ int copy_file(char* source, char* dest)
 int copyFiles(char* source_file, char* target_file)
 {
     char ch;
-   // char ch, source_file[20], target_file[20];
-    FILE *source, *target;
     
- //   printf("Enter name of file to copy\n");
- //   gets(source_file);
+    FILE *source, *target;
     
     source = fopen(source_file, "r");
     
@@ -344,10 +268,7 @@ int copyFiles(char* source_file, char* target_file)
         printf("Press any key to exit...\n");
         exit(EXIT_FAILURE);
     }
-    
- //   printf("Enter name of target file\n");
- //   gets(target_file);
-    
+        
     target = fopen(target_file, "w");
     
     if( target == NULL )
@@ -389,8 +310,6 @@ int verifyIfPasswordExist(char* username)
     
     while(fgets(temp, 512, fp) != NULL) {
 		if((strstr(temp, username)) != NULL) {
-			//printf("A match found on line: %d\n", line_num);
-			//printf("\n%s\n", temp);
 			find_result++;
             fclose(fp);
             return 1;
@@ -398,21 +317,6 @@ int verifyIfPasswordExist(char* username)
 		line_num++;
 	}
 
-    /*
-    if (fp != NULL)
-    {
-        fscanf(fp, "%s", compare);
-        if (compare == data)
-        {
-            printf("%s\n",compare);
-            printf("found it\n");
-            //do something
-        } else {
-            printf("%s\n",compare);
-            printf("cant find\n");
-        }
-    }
-     */
     
      fclose(fp);
     return 0;
@@ -420,14 +324,14 @@ int verifyIfPasswordExist(char* username)
 }
  
     
-    int main (void)
-    {
+int main (void)
+{
         //EXECUTE CODE HERE
-        //createUserDirectory("MarcusDerek",111);
-      //  addFileToDirectory(filePath2,"MarcusDerek");
-        //deleteFileFromDirectory("file.txt", "MarcusDerek");
-       // checkFileExistence("marcus.rtf","MarcusDerek");
-       // fetchListOfFiles("MarcusDerek");
-        addToPasswordFile("Bob", "IamBob");
-      //  verifyIfPasswordExist("Marcus");
-    }
+        // createUserDirectory("MarcusDerek",111);
+        // addFileToDirectory(filePath2,"MarcusDerek");
+        // deleteFileFromDirectory("file.txt", "MarcusDerek");
+        // checkFileExistence("marcus.rtf","MarcusDerek");
+        // fetchListOfFiles("MarcusDerek");
+        // addToPasswordFile("Bob", "IamBob");
+        // verifyIfPasswordExist("Marcus");
+}
