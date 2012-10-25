@@ -370,11 +370,14 @@ int deleteFileFromServer(SSL *ssl) {
         char *received_packet = malloc (1000 * sizeof(char));
         if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success HANDLE REPLY
             if(strcmp(received_packet,"1") == 0) {
-                printf("Your file has been deleted from storage!\n");
+                return 1; //success
+            }
+            else {
+                return 0; //fail
             }
         }
     }else{
-        printf("Error: Sending packet. -addFile\n"); 
+        return 0; //fail
     }
 }
 int verifyFileOnServer(SSL *ssl) {
@@ -385,11 +388,14 @@ int verifyFileOnServer(SSL *ssl) {
         char *received_packet = malloc (1000 * sizeof(char));
         if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success HANDLE REPLY
             if(strcmp(received_packet,"1") == 0) {
-                printf("Your file has been deleted from storage!\n");
+                return 1; //success
+            }
+            else {
+                return 0; //fail
             }
         }
     }else{
-        printf("Error: Sending packet. -addFile\n"); 
+        return 0;// fail 
     }
 }
 /**
@@ -534,7 +540,7 @@ void processLoggedInUserInputs(SSL *ssl) {
         }
         case 4: {//-deleteFile
             int status = 0;
-            status = deleteFileFromServer(ssl, packet_data);
+            status = deleteFileFromServer(ssl);
             if(status == 1) {//Successful
                 printf("Your file has been deleted from your storage!\n");
             }
@@ -546,7 +552,7 @@ void processLoggedInUserInputs(SSL *ssl) {
         case 5: {//-fetchFile
             int status = 0;
             char *packet = fetchFile();
-            status = receiveFileFromServer(ssl);
+            status = receiveFileFromServer(ssl, packet);
             if(status == 1) {
                 printf("Your file has been fetched from storage!\n");
             }
@@ -558,6 +564,12 @@ void processLoggedInUserInputs(SSL *ssl) {
         case 6: {//-verifyFile
             int status = 0;
             status = verifyFileOnServer(ssl);
+            if(status == 1) {
+                printf("Your file has been verified successfully.\n");
+            }
+            else {
+                printf("Error: Verifying file. -verifyFile\n");
+            }
             break;
         }
         case 7: {//listAllFiles

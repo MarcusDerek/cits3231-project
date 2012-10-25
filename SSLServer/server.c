@@ -92,7 +92,7 @@ void LoadCertificates(SSL_CTX* ctx, char* CertFile, char* KeyFile)  {
         abort();  
     }  
 }  
-  
+ 
 void ShowCerts(SSL* ssl)  
 {   X509 *cert;  
     char *line;  
@@ -380,6 +380,7 @@ int verifyFileOnCloud(char *received_packet) {
     sscanf(received_packet, "%*d %s %*s", fileName);
     //TO DO -- ADD BRYAN VERIFY FILE HERE
     printf("Verifying file: %s\n", fileName);
+    return 1; //TEMP
 }
 /**
  * Fetch the requested file from the cloud storage
@@ -481,6 +482,13 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
                 }
                 case 4: { //-deleteFile
                     status = deleteFileFromCloud(received_packet);
+                    if(status == 1) { //1 == Pass, 0 == fail
+                        sendDataTo(ssl, "1", 10);
+                        printf("-addFile: Success\n");
+                    } else {
+                        sendDataTo(ssl, "0", 10);
+                        printf("-addFile: Fail.\n");
+                    }
                     break;
                 }
                 case 5: {//-fetchFile
@@ -496,9 +504,11 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
                 case 6: {//-verifyFile
                     status = verifyFileOnCloud(received_packet);
                     if(status == 1) {
+                        sendDataTo(ssl, "1", 10);
                         printf("-verifyFile: Success\n");
                     }
                     else {
+                        sendDataTo(ssl, "0", 10);
                         printf("-verifyFile: Fail.\n");
                     }
                     break;
