@@ -178,7 +178,15 @@ char* fetchFile() {
     return output;
 }
 char* verifyFile() {
+    char *fileName = malloc(1000 * (sizeof(char)));
+    char *output = malloc(1000 * (sizeof(char)));
     
+    printf("-- VerifyFile File Command initiated --\n");
+    printf("Please specify the FILENAME of the file that you wish to VERIFY.\nSpecify FileName: ");
+    scanf("%s", fileName);
+    strcpy(output, fileName);
+    output = concatSentence(5, fileName, ""); //5 = fetchFile
+    return output;
 }
 char* listAllFiles() {
     

@@ -371,6 +371,17 @@ int deleteFileFromCloud(char *received_packet) {
     printf("Delete file: %s\n", fileName);
 }
 /**
+ * Verify the file on the cloud BASED on the filename
+ * @param received_packet - packet containing the filename
+ * @return 
+ */
+int verifyFileOnCloud(char *received_packet) {
+    char *fileName = malloc(1000 * sizeof(char));
+    sscanf(received_packet, "%*d %s %*s", fileName);
+    //TO DO -- ADD BRYAN VERIFY FILE HERE
+    printf("Verifying file: %s\n", fileName);
+}
+/**
  * Fetch the requested file from the cloud storage
  * @param received_packet - filename
  * @return 
@@ -483,7 +494,14 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
                     break;
                 }
                 case 6: {//-verifyFile
-                    
+                    status = verifyFileOnCloud(received_packet);
+                    if(status == 1) {
+                        printf("-verifyFile: Success\n");
+                    }
+                    else {
+                        printf("-verifyFile: Fail.\n");
+                    }
+                    break;
                 }
                 case 7: {//-listAllFiles
                     

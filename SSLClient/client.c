@@ -335,6 +335,12 @@ void packetToFile(char *packet, int size, char *fileName) {
     fclose(pFile);
     printf("File created.\n");
 }
+/**
+ * Used for receiving large file
+ * @param ssl ssl socket
+ * @param packet file packet consisting of filename
+ * @return 1 success, 0 otherwise
+ */
 int receiveFileFromServer(SSL *ssl, char* packet) {
     sendDataTo(ssl, packet, strlen(packet)); //Trigger server to receive file
     int success = 0;
@@ -355,6 +361,36 @@ int receiveFileFromServer(SSL *ssl, char* packet) {
         exit(EXIT_FAILURE);
     }
     return success;
+}
+int deleteFileFromServer(SSL *ssl) {
+    char *packet_data = malloc(1000 * sizeof(char));
+    strcpy(packet_data, deleteFile()); //Return filename to be deleted <4 filename "">
+    int packet_size = strlen(packet_data);
+    if(sendDataTo(ssl, packet_data, packet_size) == 1) { //Success SEND
+        char *received_packet = malloc (1000 * sizeof(char));
+        if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success HANDLE REPLY
+            if(strcmp(received_packet,"1") == 0) {
+                printf("Your file has been deleted from storage!\n");
+            }
+        }
+    }else{
+        printf("Error: Sending packet. -addFile\n"); 
+    }
+}
+int verifyFileOnServer(SSL *ssl) {
+    char *packet_data = malloc(1000 * sizeof(char));
+    strcpy(packet_data, verifyFile()); //Return filename to be deleted <4 filename "">
+    int packet_size = strlen(packet_data);
+    if(sendDataTo(ssl, packet_data, packet_size) == 1) { //Success SEND
+        char *received_packet = malloc (1000 * sizeof(char));
+        if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success HANDLE REPLY
+            if(strcmp(received_packet,"1") == 0) {
+                printf("Your file has been deleted from storage!\n");
+            }
+        }
+    }else{
+        printf("Error: Sending packet. -addFile\n"); 
+    }
 }
 /**
  * Access to this function is allowed for anyone. No logged in required
@@ -497,24 +533,20 @@ void processLoggedInUserInputs(SSL *ssl) {
             break;
         }
         case 4: {//-deleteFile
-            strcpy(packet_data, deleteFile()); //Return filename to be deleted <4 filename "">
-            packet_size = strlen(packet_data);
-            if(sendDataTo(ssl, packet_data, packet_size) == 1) { //Success SEND
-                char *received_packet = malloc (1000 * sizeof(char));
-                if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success HANDLE REPLY
-                    if(strcmp(received_packet,"1") == 0) {
-                        printf("Your file has been deleted from storage!\n");
-                    }
-                }
-            }else{
-                printf("Error: Sending packet. -addFile\n"); 
+            int status = 0;
+            status = deleteFileFromServer(ssl, packet_data);
+            if(status == 1) {//Successful
+                printf("Your file has been deleted from your storage!\n");
+            }
+            else {
+                printf("Error: Sending packet. -deleteFile\n");
             }
             break;
         }
         case 5: {//-fetchFile
             int status = 0;
             char *packet = fetchFile();
-            status = receiveFileFromServer(ssl, packet);
+            status = receiveFileFromServer(ssl);
             if(status == 1) {
                 printf("Your file has been fetched from storage!\n");
             }
@@ -524,6 +556,8 @@ void processLoggedInUserInputs(SSL *ssl) {
             break;
         }     
         case 6: {//-verifyFile
+            int status = 0;
+            status = verifyFileOnServer(ssl);
             break;
         }
         case 7: {//listAllFiles
