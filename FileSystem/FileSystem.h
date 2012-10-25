@@ -10,15 +10,15 @@
 #define COMMANDS_H
 
 //FileSystem Variables
-char* filePath2 = "/users/bryankho/desktop/movablefile.txt"; //tester file that needs to be moved
+char* filePath2 = "/users/bryankho/desktop/movefile.rtf"; //tester file that needs to be moved
 char* directoryCopy;
 
 //FileSystem Call Functions
-void createUserDirectory(char* username,int permission);
+void createUserDirectory(char* username);
 void addFileToDirectory(char* file,char* username);
-void deleteFileFromDirectory(char* filename, char* username);
+int deleteFileFromDirectory(char* filename, char* username);
 int checkFileExistence(char* filename, char* username);
-void fetchListOfFiles(char* username);
+char* fetchListOfFiles(char* username);
 int addToPasswordFile(char* username, char* password);
 
 //helper methods from filesystem

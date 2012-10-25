@@ -31,8 +31,9 @@
  @permission sets the permission
  */
 
-void createUserDirectory(char* username, int permission)
+void createUserDirectory(char* username)
 {
+    int permission = 999;
     char* pathing = malloc(1000 * sizeof(char));
     strcat(pathing, "Storage/");
     strcat(pathing, username);
@@ -57,17 +58,11 @@ void addFileToDirectory(char* file, char* username)
     source = extractFileName(file);
     
     strcat(destination,"Storage/");
-    strcat(destination,username); //destination of the file that needs to be transferred
+    strcat(destination,username); /* destination of the file that needs to be transferred */
     
     FILE * create;
-    
-    if (create!=NULL)
-    {
-        fputs ("fopen example",create);
-        fclose (create);
-    }
-    
-    creation = destination; //the files that needs to be replaced
+
+    creation = destination; /* the files that needs to be replaced */
     strcat(creation,"/");
     strcat(creation,source);
     
@@ -75,11 +70,10 @@ void addFileToDirectory(char* file, char* username)
     
     if ( rename(file,creation) )
     {
-        printf("this is source %s\n this is destination %s\n",source,destination);
-        puts ( "File successfully renamed" );
+      //  puts ( "File successfully renamed" );
     }
     else
-        perror( "Error renaming file" );
+      //  perror( "Error renaming file" );
     
     fclose(create);
         
@@ -94,14 +88,18 @@ void addFileToDirectory(char* file, char* username)
  
  */
 
-void deleteFileFromDirectory(char* filename, char* username)
+int deleteFileFromDirectory(char* filename, char* username)
 {
-    char filePathing[100];
+    char* filePathing = malloc(1000 * sizeof(char));
     strcat(filePathing,"Storage/");
     strcat(filePathing,username);
     strcat(filePathing,"/");
     strcat(filePathing,filename);
-    remove(filePathing);
+    
+    if(remove(filePathing))
+        return 1;
+    else
+        return 0;
 }
 
 /**
@@ -115,30 +113,32 @@ void deleteFileFromDirectory(char* filename, char* username)
 
 int checkFileExistence(char* filename, char* username)
 {
-    char filePathing[100];
+    char* filePathing = malloc(1000 * sizeof(char));
     strcat(filePathing,"Storage/");
     strcat(filePathing,username);
     strcat(filePathing,"/");
     strcat(filePathing,filename);
     
-    struct stat st;
-    if (stat(filePathing,&st) == -1)
-    {
+    FILE *f = fopen(filePathing, "r");
+    
+    if (!f)
         return 0;
-    } else {
-        return 1;
-    }
+    
+    fclose(f);
+    
+    return 1;
+    
 }
 
 /**
  fetchListOfFiles
- Prints all the file names into storage/list.txt
+ Prints all the file names into a string
  
  @username Takes the name that is specified by the user
  
  */
 
-void fetchListOfFiles(char* username)
+char* fetchListOfFiles(char* username)
 {
     char* filePathing = malloc(1000 * sizeof(char));
     strcat(filePathing,"Storage/");
@@ -152,21 +152,21 @@ void fetchListOfFiles(char* username)
 
     while ((dp = readdir(dirp)) != NULL)
     {
-        struct stat statbuf;
-        stat(dp->d_name, &statbuf);
-        printf("%s\n",dp->d_name);
-        strcat(data,dp->d_name);
-        strcat(data,"\n");
+        if (strcmp(dp->d_name,".") && strcmp(dp->d_name,".."))
+        {
+            struct stat statbuf;
+            stat(dp->d_name, &statbuf);
+            strcat(data,dp->d_name);
+            strcat(data,"\n");
+        }
+        else
+        {
+            dp++;
+        }
+          
     }
-    
-    strcat(filePathing,"/list.txt");
-    remove(filePathing);
-    FILE *fp = fopen(filePathing, "ab");
-    if (fp != NULL)
-    {
-        fputs(data, fp);
-        fclose(fp);
-    }
+    printf("%s\n",data);
+    return data;
 }
 
 /**
@@ -196,13 +196,12 @@ int addToPasswordFile(char* username, char* password)
     strcat(data,"\n");
     strcat(filePathing,"Password/passwordlist.txt");
     
-    FILE *fp = fopen(filePathing, "ab");
+    FILE *fp = fopen(filePathing, "a+");
     if (fp != NULL)
     {
         fputs(data, fp);
         fclose(fp);
     }
-    
     return 1;
 }
 
@@ -339,19 +338,23 @@ char* extractFileName(char* filePath)
         }
            
     }
-    printf("Actual file name is = %s\n",fileName);
     return fileName;
 }
 
     
-int main (void)
+int main (void) /* Test Code Here */
 {
-        //EXECUTE CODE HERE
-        // createUserDirectory("MarcusDerek",111);
-        // addFileToDirectory(filePath2,"MarcusDerek");
-        // deleteFileFromDirectory("file.txt", "MarcusDerek");
-        // checkFileExistence("marcus.rtf","MarcusDerek");
-        // fetchListOfFiles("MarcusDerek");
+  
+        // createUserDirectory("BryanKho");
+       //  addFileToDirectory(filePath2,"BryanKho");
+      //   deleteFileFromDirectory("dota2.exe", "BryanKho");
+      //  int test1 = checkFileExistence("dota2.exe","BryanKho");
+      //  printf("%i\n",test1);
+      //   fetchListOfFiles("BryanKho");
         // addToPasswordFile("Bob", "IamBob");
+        // addToPasswordFile("Jane", "ComplicatedPassword");
+        // addToPasswordFile("Marcus", "123456");
+        // addToPasswordFile("Amin","IamIndian");
+        // addToPasswordFile("BryanKho","donttelllanyone");
         // verifyIfPasswordExist("Marcus");
 }
