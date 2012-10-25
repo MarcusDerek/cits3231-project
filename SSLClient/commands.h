@@ -19,6 +19,7 @@ char* deleteFile();
 char* fetchFile();
 char* verifyFile();
 char* listAllFiles();
+char* loginToBank();
 char* concatSentence(int command, char* sentence1, char* sentence2);
 
 

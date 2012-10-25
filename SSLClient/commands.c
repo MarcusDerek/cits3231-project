@@ -19,7 +19,8 @@ const char list[][30] = {
     "-deleteFile", //5
     "-fetchFile",//6
     "-verifyFile",//7
-    "-listAllFiles"//8
+    "-listAllFiles",//8
+    "-checkBankFunds" //9        
             
 };
 
@@ -91,6 +92,8 @@ int verifyUserCommand(char* cmd) {
         return 6;
     } else if(strcmp(cmd, list[8]) == 0) { //-listAllFiles
         return 7;
+    } else if(strcmp(cmd, list[9]) == 0) {
+        return 8;
     }
     return ERROR;
 }
@@ -193,6 +196,24 @@ char* listAllFiles() {
     
     printf("-- Listing All Files Command initiated --\n");
     output = concatSentence(7, "", ""); //5 = fetchFile
+    return output;
+}
+/**
+ * To log into the BANK personal account
+ * @return the //ie 2 Marcus 123456
+ */
+char* loginToBank() {//2
+    char *userName = malloc(1000 * (sizeof(char)));
+    char *password = malloc(1000 * (sizeof(char)));
+    
+    char *output = malloc(1000 * sizeof(char));
+    printf("Logging into account...\n");
+    printf("Enter your username: ");
+    scanf("%s", userName);
+    printf("Enter your 6-digit password: ");
+    scanf("%s", password);
+    output = concatSentence(2,userName, password); //2 = login
+    printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
     return output;
 }
 

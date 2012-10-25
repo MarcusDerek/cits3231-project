@@ -507,6 +507,25 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
             logged_in = 0;
             return logged_in;
         }
+        case 8: {
+            strcpy(packet_data, loginToBank());
+            printf("Packet Data = %s\n", packet_data);
+            packet_size = strlen(packet_data);
+            if(sendDataTo(sslBank, packet_data, packet_size) == 1) {}//Success SEND
+//                char *received_packet = malloc (1000 * sizeof(char));
+//                if(receiveDataFrom(sslServer, received_packet, 30000) == 1) {//Success HANDLE REPLY
+//                    if(strcmp(received_packet,"1") == 0) {
+//                        printf("Login successful!\n");
+//                        sscanf(packet_data, "%*d %s %*s", LOGGED_IN_AS_USERNAME);
+//                        logged_in = 1; //success
+//                        return logged_in;
+//                    }
+//                }
+//            }else{
+//                printf("Error: Sending packet. -login\n"); 
+//            }
+            break;
+        }
         case 99: {//-help
             printf("%s", get_HelpList());
             break;

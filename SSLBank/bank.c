@@ -22,6 +22,37 @@
 #include <openssl/err.h>
 
 #define FAIL    -1
+/**
+ * Receive Data from Cloud. Use for files
+ * @param ssl - ssl socket
+ * @param received_packet - packet data
+ * @param received_packet_size - size of packet
+ * @return 1 success, 0 otherwise
+ */
+int receiveDataFrom(SSL *ssl, char* received_packet, int received_packet_size) {
+    int bytes_received;
+    int total_size = 0;
+    int success = 0;
+    while(bytes_received != received_packet_size) {
+        bytes_received = SSL_read(ssl, received_packet + total_size, received_packet_size); //Receive First Line @ Loop 0
+        total_size = total_size + bytes_received; //Increment pointer to add additional data
+        printf("%d bytes received.\n", total_size);
+        if(bytes_received == 0) {
+                printf("File transfer complete.\n");
+                break;
+        }
+        if(bytes_received == -1) {
+                printf("Error receiving file.\n");
+                break;
+        }
+        if(total_size == received_packet_size) {
+            success = 1;
+            break;
+        }
+    }
+    printf("Total Bytes Received from Server: %d\n", total_size);
+    return success;
+}
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/
 int OpenConnection(const char *hostname, int port)  {
     int sd;  
@@ -229,13 +260,14 @@ SSL* connectToCloudServer(char *strings[]) {
  * 
  */
 void serviceConnection(SSL *ssl) {
-    char buf[1024];  
+    char *file_packet = malloc(1000 * sizeof(char));  
     char *reply = "Success!";  
     int sd, bytes;  
    
     //ShowClientCerts(ssl);        /* get any certificates */
     while(1) {
-        //Add stuff here
+        receiveDataFrom(ssl, file_packet, 1000);
+        printf("Bank received: %s\n", file_packet);
     }
 
 }
