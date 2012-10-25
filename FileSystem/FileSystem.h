@@ -11,10 +11,12 @@
 
 
 //FileSystem Variables
- const char * const PATH = "/users/bryankho/desktop"; //path needs to be changed to accomodate
- char* filePath = "/users/bryankho/desktop/testFile.rtf"; //testerFile pathway to test addFileToDirectory
+const char * const PATH = "/users/bryankho/desktop"; //path needs to be changed to accomodate
+char* filePath = "/users/bryankho/desktop/testFile.rtf"; //testerFile pathway to test addFileToDirectory
 char* filePath2 = "/users/bryankho/desktop/file.txt"; //testerFile pathway to test addFileToDirectory
-char* filePath3 = "/users/bryankho/desktop/20714477/file.txt"; //deletion testing
+char* filePath3 = "/users/bryankho/desktop/MarcusDerek/file.txt"; //deletion testing
+
+char* directoryCopy; //for addFileToDirectory function
 
 
 
@@ -23,9 +25,14 @@ void createUserDirectory(char* username,int permission); //to be change to more 
 void directToUserDirectory(char* username);
 void addFileToDirectory(char* file,char* username);
 void deleteFileFromDirectory(char* filename, char* username);
-void checkFileExistence(char* filename);
+void checkFileExistence(char* filename, char* username);
 void fetchListOfFiles(char* username);
-int copy_file(char *old_filename, char  *new_filename);
+int addToPasswordFile(char* username, char* password);
+
+//helper methods from filesystem
+int copy_file(char *old_filename, char *new_filename);
+int copyFiles(char* source_file, char* target_file);
+int verifyIfPasswordExist(char* username);
 
 
 //BankServer Call Functions
