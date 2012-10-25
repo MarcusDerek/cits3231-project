@@ -482,9 +482,7 @@ SSL* acceptBankConnection(int count, char *strings[]) {
  * Main bulk of servicing the incomming connection
  * @param ssl
  */
-void serviceConnection(SSL* sslClient, SSL* sslBank) /* Serve the connection -- threadable */  
-{   char buf[1024];  
-    char *reply = "Success!";  
+void serviceConnection(SSL* sslClient, SSL* sslBank) {/* Serve the connection -- threadable */  
     int sd, bytes;  
     
         ShowCerts(sslClient);        /* get any certificates CLIENT */ 
@@ -579,6 +577,23 @@ void serviceConnection(SSL* sslClient, SSL* sslBank) /* Serve the connection -- 
                 }
                 case 7: {//-listAllFiles
                     status = listAllFilesOnCloud();
+                    break;
+                }
+                case 8: { //-buyCloudMoney (Both server and bank attention required.
+                    printf("Prepared to receive fund transfer.\n");
+                    char *amountOfCloudDollarsToAddToAccount = malloc(1000 * sizeof(char));
+                    receiveCommandFrom(sslBank, amountOfCloudDollarsToAddToAccount); //Allow BANK TO SEND FUNDS
+                    printf("Amount received: %s\n", amountOfCloudDollarsToAddToAccount);
+                    //TAIGA - ADD FUNDS INTO FILE
+                    break;
+                }
+                case 9: {//-checkBankFunds
+                    break;
+                }
+                case 10: {//-checkCloudFunds
+                    //TAIGA - Retrieve cloud fund!
+                    //sendDataTo(sslClient, CLOUDFUND, strlen(CLOUDFUND));
+                    break;
                 }
                     
             }

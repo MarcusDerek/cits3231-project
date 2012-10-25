@@ -19,7 +19,9 @@ char* deleteFile();
 char* fetchFile();
 char* verifyFile();
 char* listAllFiles();
-char* loginToBank();
+char* buyCloudMoney(); char* getAmountToBuy();
+char* checkBankFunds();
+char* checkCloudFunds();
 char* concatSentence(int command, char* sentence1, char* sentence2);
 
 

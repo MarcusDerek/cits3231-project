@@ -507,11 +507,17 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
             logged_in = 0;
             return logged_in;
         }
-        case 8: {
-            strcpy(packet_data, loginToBank());
+        case 8: { //-buyCloudMoney
+            printf("-BuyCloudMoney Command Received.\n");
+            char *switch_data = "8"; //Tell server to switch focus to BANK
+            sendDataTo(sslServer, switch_data, strlen(switch_data)); //Switch SERVER attention
+            strcpy(packet_data, buyCloudMoney());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
-            if(sendDataTo(sslBank, packet_data, packet_size) == 1) {}//Success SEND
+            if(sendDataTo(sslBank, packet_data, packet_size) == 1) {//Success SENDING BANK LOGIN + FUNDS
+                char *amountToBuy = malloc(1000 * sizeof(char));
+                strcpy(amountToBuy, getAmountToBuy());
+                sendDataTo(sslBank, amountToBuy, strlen(amountToBuy)); //Send to bank
 //                char *received_packet = malloc (1000 * sizeof(char));
 //                if(receiveDataFrom(sslServer, received_packet, 30000) == 1) {//Success HANDLE REPLY
 //                    if(strcmp(received_packet,"1") == 0) {
@@ -521,9 +527,33 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
 //                        return logged_in;
 //                    }
 //                }
-//            }else{
-//                printf("Error: Sending packet. -login\n"); 
-//            }
+            }
+            else {
+                printf("Error: Sending packet. -login\n"); 
+            }
+            logged_in = 0;
+            return logged_in;
+            break;
+        }
+        case 9: { //-checkBankFunds
+            printf("-CheckBandFunds Command Received.\n");
+            strcpy(packet_data, checkBankFunds());
+            printf("Packet Data = %s\n", packet_data);
+            packet_size = strlen(packet_data);
+            if(sendDataTo(sslBank, packet_data, packet_size) == 1) { //Send checkfunds to bank
+                char *received_packet = malloc (1000 * sizeof(char)); //Standby to receive amount
+                    if(receiveDataFrom(sslBank, received_packet, 30000) == 1) { //receive amount
+                        printf("You have %s of bank funds.\n", received_packet);
+                    }
+            }
+            logged_in = 0;
+            return logged_in;
+            break;
+        }
+        case 10: { //-checkCloudFunds
+            printf("Unable to use -checkCloudFunds as you are NOT logged in!\n");
+            logged_in = 0;
+            return logged_in;
             break;
         }
         case 99: {//-help
@@ -627,6 +657,27 @@ void processLoggedInUserInputs(SSL *sslServer, SSL* sslBank) {
             }
             break;
         }
+        case 8: {//-buyCloudMoney
+            printf("Unable to use -buyCloudMoney as you are already LOGGED IN!.\n");
+            break;
+        }
+        case 9: {//-checkBankFunds
+            printf("Unable to use -checkBankFunds as you are already LOGGED IN!.\n");
+            break;
+        }
+        case 10: {//-checkCloudFunds
+            printf("-CheckCloudFunds Command Received.\n");
+            strcpy(packet_data, checkCloudFunds());
+            printf("Packet Data = %s\n", packet_data);
+            packet_size = strlen(packet_data);
+            if(sendDataTo(sslServer, packet_data, packet_size) == 1) { //Send checkfunds to bank
+                char *received_packet = malloc (1000 * sizeof(char)); //Standby to receive amount
+                    if(receiveDataFrom(sslServer, received_packet, 30000) == 1) { //receive amount
+                        printf("You have %s of cloud funds.\n", received_packet);
+                    }
+            }
+            break;
+        }
         case 99: {//-help
             printf("%s", get_HelpList());
             break;
@@ -681,7 +732,6 @@ SSL* connectToCloudBank(char *strings[]) {
     BIO* sslserver = BIO_new_socket(server, BIO_NOCLOSE);
     //BIO_set_nbio(sslserver,0);
     SSL_set_bio(ssl, sslserver, sslserver);
-    printf("OMGGGG\n");
    //SSL_set_fd(ssl, server);    /* attach the socket descriptor */  
     if ( SSL_connect(ssl) == FAIL ) {  /* perform the connection */
         printf("FAIL TO CONNECT\n");
@@ -723,7 +773,6 @@ int main(int count, char *strings[]) {
     while (1) {
         if(logged_in == 0) {
             logged_in = processCommonInputs(sslServer, sslBank); //On succesful login, return 1
-            printf("Now it is %d\n", logged_in);
             if(logged_in == 1) { //Only called once
                 system("clear");
                 printf("Thanks for logging in!\nYou are now able to access the full cloud commands!.\n\nLogged in as: %s\n\n", LOGGED_IN_AS_USERNAME);

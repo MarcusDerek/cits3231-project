@@ -22,6 +22,42 @@
 #include <openssl/err.h>
 
 #define FAIL    -1
+
+/*Global Variable*/
+char LOGGED_IN_AS_USERNAME[100];
+int LOGGED_IN = 0; //1 logged in, 0 otherwise. Default: NOT LOGGEDIN
+/**
+ * @param ssl - SSL socket
+ * @param sent_packet - packet data
+ * @param sent_packet_size - size of data
+ * @return 1 success, 0 otherwise
+ */
+int sendDataTo(SSL *ssl, char* sent_packet, int sent_packet_size) {
+    int success = 0;
+    int bytes_sent = 0;
+    while (bytes_sent < sent_packet_size) {
+        bytes_sent = SSL_write(ssl, sent_packet, sent_packet_size);
+    }
+    if(bytes_sent >= sent_packet_size) {
+        success = 1;
+    }
+    printf("Server: Packet sent successful.\n");
+    return success;
+}
+/** 
+ * @param sockfd
+ * @param received_packet
+ * @return 
+ */
+int receiveCommandFrom(SSL *ssl, char* received_packet) {
+    int success = 1;
+    int bytes_received = SSL_read(ssl, received_packet, 100);
+    if(bytes_received == 0) {
+        printf("Connection terminated abruptly.\n");
+        exit(EXIT_FAILURE);
+    }
+    return success;
+}
 /**
  * Receive Data from Cloud. Use for files
  * @param ssl - ssl socket
@@ -256,18 +292,78 @@ SSL* connectToCloudServer(char *strings[]) {
     printf("Server Status: %d\n", statusServer);
     return ssl;
 }
+/**
+ * Ensure that user is correctly logged in
+ * Sets GLOBAL param to ACTIVE
+ * @param received_packet
+ * @param ssl
+ * @return 
+ */
+int loginToBankAccount(char *received_packet, SSL *ssl) {
+    char *username = malloc(1000 * sizeof(char));
+    char *password = malloc(1000 * sizeof(char));
+    sscanf(received_packet, "%*d %s %s", username, password);
+    strcpy(LOGGED_IN_AS_USERNAME, username); //SETS THE GLOBAL USERNAME
+    //TAIGA TO DO
+    LOGGED_IN = 1;
+    return 1; //1 success, 0 otherwise
+}
+int addCloudMoneyToServer(SSL *sslServer, char *cloudMoney) {
+    //char *cloudMonies = malloc(1000 * sizeof(char));
+    //sprintf(cloudMonies, "%d", cloudMoney);
+    sendDataTo(sslServer, cloudMoney, strlen(cloudMoney));
+}
 /*
  * 
  */
-void serviceConnection(SSL *ssl) {
+void serviceConnection(SSL *sslClient, SSL *sslServer) {
     char *file_packet = malloc(1000 * sizeof(char));  
     char *reply = "Success!";  
     int sd, bytes;  
    
+    char *received_packet = malloc(1000 * sizeof(char));
+    int file_size;
+    char *sent_packet = malloc(1000 * sizeof(char));
+    if(receiveCommandFrom(sslClient, received_packet) == 1) {
+        printf("Received MSG: %s\n", received_packet);
+    } else {
+        printf("Error: Receive invalid command!\n");
+        //exit(EXIT_FAILURE);
+    }
+    int userInputCommand;
+     /*
+     * Determine which command is used
+     */
+    int status;
+    sscanf(received_packet, "%d", &userInputCommand);
     //ShowClientCerts(ssl);        /* get any certificates */
     while(1) {
-        receiveDataFrom(ssl, file_packet, 1000);
-        printf("Bank received: %s\n", file_packet);
+        switch (userInputCommand) {
+            case 8: { //-buyCloudMoney
+                status = loginToBankAccount(received_packet, sslClient);//ie 8 Marcus 123456
+                if(status == 1) { //1 == Pass, 0 == fail
+                    char *amountToBuy = malloc(1000 * sizeof(char));
+                    receiveCommandFrom(sslClient, amountToBuy);
+                    printf("Amount to buy = %s\n", amountToBuy);
+                    //TAIGA - TO DEDUCT MONEY FROM FILE + cloudMoney RETURN FAIL OR SUCCESS
+                    //MARCUS - TO DO SUCCES OR FAIL STATEMENT
+                    int statusMoney = addCloudMoneyToServer(sslServer, amountToBuy);
+                    //sendDataTo(sslClient, "1", 10);
+                    //printf("-login: Success\n");
+                } else {
+                    //sendDataTo(sslClient, "0", 10);
+                    //printf("-login: Fail\n");
+                }
+                break;
+            }
+            case 9: {
+                status = loginToBankAccount(received_packet, sslClient); // 9 Marcus 123456
+                if(status == 1) {//Success 
+                    //TAIGA - CHECK FUNDS IN BANK FILE AND GRAB IT
+                    //sendDataTo(sslClient, FUNDS, 10);
+                }
+            }
+        }
     }
 
 }
@@ -289,7 +385,7 @@ int main(int count, char *strings[])  {
     }
 
     while(1) {
-        serviceConnection(sslServer);         /* service connection. 1 user 1 persistant connection */  
+        serviceConnection(sslClient, sslServer);         /* service connection. 1 user 1 persistant connection */  
     } 
     //close(server);          /* close server socket */  
     //SSL_CTX_free(ctx);         /* release context */  

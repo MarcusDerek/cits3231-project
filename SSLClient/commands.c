@@ -20,7 +20,10 @@ const char list[][30] = {
     "-fetchFile",//6
     "-verifyFile",//7
     "-listAllFiles",//8
-    "-checkBankFunds" //9        
+    "-buyCloudMoney", //9
+    "-checkBankFunds",//10
+    "-checkCloudFunds"//11
+            
             
 };
 
@@ -92,8 +95,12 @@ int verifyUserCommand(char* cmd) {
         return 6;
     } else if(strcmp(cmd, list[8]) == 0) { //-listAllFiles
         return 7;
-    } else if(strcmp(cmd, list[9]) == 0) {
+    } else if(strcmp(cmd, list[9]) == 0) { //-buyCloudMoney
         return 8;
+    } else if(strcmp(cmd, list[10]) == 0) { //-checkBankFunds
+        return 9;
+    } else if(strcmp(cmd, list[11]) == 0) { //-checkCloudFunds
+        return 10;
     }
     return ERROR;
 }
@@ -188,31 +195,76 @@ char* verifyFile() {
     printf("Please specify the FILENAME of the file that you wish to VERIFY.\nSpecify FileName: ");
     scanf("%s", fileName);
     strcpy(output, fileName);
-    output = concatSentence(6, fileName, ""); //5 = fetchFile
+    output = concatSentence(6, fileName, ""); //6 = verifyfile
     return output;
 }
 char* listAllFiles() {
     char *output = malloc(1000 * (sizeof(char)));
     
     printf("-- Listing All Files Command initiated --\n");
-    output = concatSentence(7, "", ""); //5 = fetchFile
+    output = concatSentence(7, "", ""); //7 = listAllFiles
     return output;
 }
 /**
  * To log into the BANK personal account
  * @return the //ie 2 Marcus 123456
  */
-char* loginToBank() {//2
+char* buyCloudMoney() {//2
     char *userName = malloc(1000 * (sizeof(char)));
     char *password = malloc(1000 * (sizeof(char)));
+    char *amountOfMoneyToBuy = malloc(1000 * sizeof(char));
     
     char *output = malloc(1000 * sizeof(char));
-    printf("Logging into account...\n");
+    printf("Logging into BANK Account...\n");
     printf("Enter your username: ");
     scanf("%s", userName);
     printf("Enter your 6-digit password: ");
     scanf("%s", password);
-    output = concatSentence(2,userName, password); //2 = login
+    output = concatSentence(8,userName, password); //8 = buyCloudMoney
+    //strcat(output, " ");
+    //strcat(output, amountOfMoneyToBuy); //8 Marcus 123456 6000
+    printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
+    return output;
+}
+char *getAmountToBuy() {
+    char *amountOfMoneyToBuy = malloc(1000 * sizeof(char));
+    printf("Enter the amount $Cloud you want to purchase: ");
+    scanf("%s", amountOfMoneyToBuy);
+    return amountOfMoneyToBuy;
+}
+/**
+ * Checks the funds in the Bank Server
+ * @return 
+ */
+char* checkBankFunds() {
+    char *userName = malloc(1000 * (sizeof(char)));
+    char *password = malloc(1000 * (sizeof(char)));
+    
+    char *output = malloc(1000 * sizeof(char));
+    printf("Logging into BANK Account...\n");
+    printf("Enter your username: ");
+    scanf("%s", userName);
+    printf("Enter your 6-digit password: ");
+    scanf("%s", password);
+    output = concatSentence(9,userName, password); //9 = checkBankFunds
+    printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
+    return output;
+}
+/**
+ * Check the funds in the Cloud server
+ * @return 
+ */
+char* checkCloudFunds() {
+    char *userName = malloc(1000 * (sizeof(char)));
+    char *password = malloc(1000 * (sizeof(char)));
+    
+    char *output = malloc(1000 * sizeof(char));
+    printf("Logging into BANK Account...\n");
+    printf("Enter your username: ");
+    scanf("%s", userName);
+    printf("Enter your 6-digit password: ");
+    scanf("%s", password);
+    output = concatSentence(10,userName, password); //10 = checkCloudFunds
     printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
     return output;
 }
