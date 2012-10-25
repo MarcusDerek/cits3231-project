@@ -16,9 +16,13 @@
 #include <netinet/in.h>  
 #include <resolv.h> 
 
-#include "openssl/include/openssl/bio.h"
-#include "openssl/include/openssl/ssl.h"
-#include "openssl/include/openssl/err.h"
+//#include "openssl/include/openssl/bio.h"
+//#include "openssl/include/openssl/ssl.h"
+//#include "openssl/include/openssl/err.h"
+
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #define CLOUD_SERVER_PORT "3230"  // the port users will be connecting to
 #define CLOUD_SERVER_ADDRESS "130.95.1.70"
@@ -421,29 +425,76 @@ int listAllFilesOnCloud() {
 //    }
     return 1;// TEMP
 }
+SSL* acceptClientConnection(int count, char *strings[]) {
+    SSL_CTX *ctx;  
+    int server;  
+    char *portnum;  
 
+    //system("clear");
+    SSL_library_init(); //Required to startup SSL 
+  
+    portnum = strings[1]; //Client Port  
+    ctx = InitServerCTX();        /* initialize SSL */  
+    LoadCertificates(ctx, "mycert.pem", "mycert.pem"); /* load certs from server directory */  
+    server = OpenListener(atoi(portnum));    /* create server socket */  
+    struct sockaddr_in addr;  
+    socklen_t len = sizeof(addr);  
+    SSL *ssl;  
+    /* Server Initation */
+    printf("Server Status: Online\nCloud Server fully operational.\nWaiting for connection (CLIENT) on port: %s...\n",portnum );
+    int client = accept(server, (struct sockaddr*)&addr, &len);  /* accept connection as usual */  
+    printf("Connection received (CLIENT): %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));  
+    ssl = SSL_new(ctx);              /* get new SSL state with context */
+    BIO* sslclient = BIO_new_socket(client, BIO_NOCLOSE);
+    SSL_set_bio(ssl, sslclient, sslclient);   
+    printf("Parameters created.\nAwaiting commands...\n");
+    return ssl;
+}
+
+SSL* acceptBankConnection(int count, char *strings[]) {
+    SSL_CTX *ctx;  
+    int server;  
+    char *portnum;  
+
+    //system("clear");
+    SSL_library_init(); //Required to startup SSL 
+  
+    portnum = strings[2]; //Bank Port  
+    ctx = InitServerCTX();        /* initialize SSL */  
+    LoadCertificates(ctx, "mycert.pem", "mycert.pem"); /* load certs from server directory */  
+    server = OpenListener(atoi(portnum));    /* create server socket */  
+    struct sockaddr_in addr;  
+    socklen_t len = sizeof(addr);  
+    SSL *ssl;  
+    /* Server Initation */
+    printf("Server Status: Online\nCloud Server fully operational.\nWaiting for connection (BANK) on port: %s...\n",portnum );
+    int client = accept(server, (struct sockaddr*)&addr, &len);  /* accept connection as usual */  
+    printf("Connection received (BANK): %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));  
+    ssl = SSL_new(ctx);              /* get new SSL state with context */
+    BIO* sslclient = BIO_new_socket(client, BIO_NOCLOSE);
+    SSL_set_bio(ssl, sslclient, sslclient);   
+    printf("Parameters created.\nAwaiting commands...\n");
+    printf("OMG FINISH!\n");
+    return ssl;
+    
+}
 /** 
  * Main bulk of servicing the incomming connection
  * @param ssl
  */
-void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */  
+void serviceConnection(SSL* sslClient, SSL* sslBank) /* Serve the connection -- threadable */  
 {   char buf[1024];  
     char *reply = "Success!";  
     int sd, bytes;  
-  
-    if ( SSL_accept(ssl) == FAIL )  {
-        /* do SSL-protocol accept */  
-        ERR_print_errors_fp(stderr);
-        printf("Error OCCURED!\n");
-    }   
-    else {   
-        ShowCerts(ssl);        /* get any certificates */  
+    
+        ShowCerts(sslClient);        /* get any certificates CLIENT */ 
+        ShowCerts(sslBank);        /* get any certificates BANK */ 
         while(1) {
+             /*CLIENT RECEIVING COMMAND*/
             char *received_packet = malloc(1000 * sizeof(char));
             int file_size;
             char *sent_packet = malloc(1000 * sizeof(char));
-
-            if(receiveCommandFrom(ssl, received_packet) == 1) {
+            if(receiveCommandFrom(sslClient, received_packet) == 1) {
                 printf("Received MSG: %s\n", received_packet);
             } else {
                 printf("Error: Receive invalid command!\n");
@@ -463,32 +514,32 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
                 case 1: { //-registerNewAccount
                     status = processRegisterNewAccount(received_packet); //ie 1 Marcus 123456 - 1 = registerNewAccount
                     if(status == 1) { //1 == Pass, 0 == fail
-                        sendDataTo(ssl, "1", 10);
+                        sendDataTo(sslClient, "1", 10);
                         printf("-registerNewAccount: Success\n");
                     } else {
-                        sendDataTo(ssl, "0", 10);
+                        sendDataTo(sslClient, "0", 10);
                         printf("-registerNewAccount: Fail\n");
                     }
                     break;
                 }
                 case 2: { //-login
-                    status = loginToAccount(received_packet, ssl);//ie 2 Marcus 123456
+                    status = loginToAccount(received_packet, sslClient);//ie 2 Marcus 123456
                     if(status == 1) { //1 == Pass, 0 == fail
-                        sendDataTo(ssl, "1", 10);
+                        sendDataTo(sslClient, "1", 10);
                         printf("-login: Success\n");
                     } else {
-                        sendDataTo(ssl, "0", 10);
+                        sendDataTo(sslClient, "0", 10);
                         printf("-login: Fail\n");
                     }
                     break;
                 }
                 case 3: { //-addFile
-                    status = addFileToCloud(ssl);
+                    status = addFileToCloud(sslClient);
                     if(status == 1) { //1 == Pass, 0 == fail
-                        sendDataTo(ssl, "1", 10);
+                        sendDataTo(sslClient, "1", 10);
                         printf("-addFile: Success\n");
                     } else {
-                        sendDataTo(ssl, "0", 10);
+                        sendDataTo(sslClient, "0", 10);
                         printf("-addFile: Fail.\n");
                     }
                     break;
@@ -496,16 +547,16 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
                 case 4: { //-deleteFile
                     status = deleteFileFromCloud(received_packet);
                     if(status == 1) { //1 == Pass, 0 == fail
-                        sendDataTo(ssl, "1", 10);
+                        sendDataTo(sslClient, "1", 10);
                         printf("-addFile: Success\n");
                     } else {
-                        sendDataTo(ssl, "0", 10);
+                        sendDataTo(sslClient, "0", 10);
                         printf("-addFile: Fail.\n");
                     }
                     break;
                 }
                 case 5: {//-fetchFile
-                    status = fetchFileFromCloud(ssl, received_packet);
+                    status = fetchFileFromCloud(sslClient, received_packet);
                     if(status == 1) {
                         printf("-fetchFile: Success\n");
                     }
@@ -517,11 +568,11 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
                 case 6: {//-verifyFile
                     status = verifyFileOnCloud(received_packet);
                     if(status == 1) {
-                        sendDataTo(ssl, "1", 10);
+                        sendDataTo(sslClient, "1", 10);
                         printf("-verifyFile: Success\n");
                     }
                     else {
-                        sendDataTo(ssl, "0", 10);
+                        sendDataTo(sslClient, "0", 10);
                         printf("-verifyFile: Fail.\n");
                     }
                     break;
@@ -531,48 +582,37 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
                 }
                     
             }
-        }
-
-        
-    }  
+        } 
     //sd = SSL_get_fd(ssl);       /* get socket connection */  
     //SSL_free(ssl);         /* release SSL state */  
     //close(sd);          /* close connection */  
 }  
 
 
-int main(int count, char *strings[])  
-{   SSL_CTX *ctx;  
-    int server;  
-    char *portnum;  
-  
-    if ( count != 2 )  
-    {  
-        printf("Usage: %s <portnum>\n", strings[0]);  
+int main(int count, char *strings[])  {
+    if ( count != 3 )  {  
+        printf("Usage: %s <client_portnum> <bank_port>\n", strings[0]);  
         exit(0);  
     }
-    system("clear");
-    SSL_library_init(); //Required to startup SSL 
-  
-    portnum = strings[1];  
-    ctx = InitServerCTX();        /* initialize SSL */  
-    LoadCertificates(ctx, "mycert.pem", "mycert.pem"); /* load certs from server directory */  
-    server = OpenListener(atoi(portnum));    /* create server socket */  
-    struct sockaddr_in addr;  
-    socklen_t len = sizeof(addr);  
-    SSL *ssl;  
-    /* Server Initation */
-    printf("Server Status: Online\nCloud Server fully operational.\nWaiting for connection on port: %s...\n",portnum );
-    int client = accept(server, (struct sockaddr*)&addr, &len);  /* accept connection as usual */  
-    printf("Connection received: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));  
-    ssl = SSL_new(ctx);              /* get new SSL state with context */
-    BIO* sslclient = BIO_new_socket(client, BIO_NOCLOSE);
-    SSL_set_bio(ssl, sslclient, sslclient);   
-    printf("Parameters created.\nAwaiting commands...\n");
+    SSL *sslBank = acceptBankConnection(count, strings);
+    int statusClient = SSL_accept(sslBank);
+    printf("Server: StatusClient = %d\n", statusClient);
+    
+    SSL *sslClient = acceptClientConnection(count, strings);
+    int statusBank = SSL_accept(sslClient);
+    printf("Bank: StatusClient = %d\n", statusBank);
+    
+    if (statusClient == FAIL || statusBank == FAIL)  {
+        /* do SSL-protocol accept */  
+        ERR_print_errors_fp(stderr);
+        printf("Error OCCURED!\n");
+    }  
+
+
     /* Put all processes in the WHILE LOOP */
     while(1) {
-        serviceConnection(ssl);         /* service connection. 1 user 1 persistant connection */  
+        serviceConnection(sslClient, sslBank);         /* service connection. 1 user 1 persistant connection */  
     } 
-    close(server);          /* close server socket */  
-    SSL_CTX_free(ctx);         /* release context */  
+    //close(server);          /* close server socket */  
+    //SSL_CTX_free(ctx);         /* release context */  
 }  

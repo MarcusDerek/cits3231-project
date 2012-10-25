@@ -6,10 +6,12 @@
  * Created on October 23, 2012, 6:36 PM
  */
 
-#include "openssl/include/openssl/bio.h"
-#include "openssl/include/openssl/ssl.h"
-#include "openssl/include/openssl/err.h"
-
+//#include "openssl/include/openssl/bio.h"
+//#include "openssl/include/openssl/ssl.h"
+//#include "openssl/include/openssl/err.h"
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 //SSL-Client.c  
 #include <stdio.h>  
 #include <errno.h>  
@@ -90,7 +92,7 @@ void ShowCerts(SSL* ssl)  {
     }  
     else {
         printf("No certificates. Exiting program.\n");
-        exit(EXIT_FAILURE); //Exits when the server does not have a cert
+        //exit(EXIT_FAILURE); //Exits when the server does not have a cert
     }  
         
 }  
@@ -633,13 +635,13 @@ SSL* connectToCloudServer(char *strings[]) {
     if ( SSL_connect(ssl) == FAIL ) {  /* perform the connection */  
         ERR_print_errors_fp(stderr);
     }
-//    else {
-//            ShowCerts(ssl);        /* get any certs */
-//            if(SSL_get_verify_result(ssl) != X509_V_OK) {
-//                printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
-//                exit(EXIT_FAILURE);
-//            }
-//    }
+    else {
+            ShowCerts(ssl);        /* get any certs */
+            if(SSL_get_verify_result(ssl) != X509_V_OK) {
+                printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
+                //exit(EXIT_FAILURE);
+            }
+    }
     return ssl;
 }
 SSL* connectToCloudBank(char *strings[]) {
@@ -668,16 +670,12 @@ SSL* connectToCloudBank(char *strings[]) {
         printf("DONE1!!!\n");
     }
     else {
-        printf("FUCK YEAH!\n");
+            ShowCerts(ssl);        /* get any certs */
+            if(SSL_get_verify_result(ssl) != X509_V_OK) {
+                printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
+                //exit(EXIT_FAILURE);
+            }
     }
-//    else {
-//            ShowCerts(ssl);        /* get any certs */
-//            if(SSL_get_verify_result(ssl) != X509_V_OK) {
-//                printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
-//                //exit(EXIT_FAILURE);
-//            }
-//    }
-    printf("DONE2!!!\n");
     return ssl;
   
 }
@@ -688,65 +686,36 @@ SSL* connectToCloudBank(char *strings[]) {
  * @return 
  */
 int main(int count, char *strings[]) { 
-//{   SSL_CTX *ctx;  
-//    int server;  
-//    SSL *ssl;  
-//    char buf[1024];  
-//    int bytes;  
-//    char *hostname, *portnum;
-    
-  
     if ( count != 5 )  {  
         printf("usage: %s <server_hostname> <server_portnum> <bank_hostname> <bank_portnum>\n", strings[0]);  
         exit(0);  
     }
-
-
     SSL_library_init(); 
     SSL *sslServer = connectToCloudServer(strings);
     printf("Created SSLSERVER.\n");
     SSL *sslBank = connectToCloudBank(strings);
     printf("Created SSLCLOUDBANK\n");
-//    hostname=strings[1];  
-//    portnum=strings[2];  
-  
-//    ctx = InitCTX();  
-//    server = OpenConnection(hostname, atoi(portnum));  
-//    ssl = SSL_new(ctx);      /* create new SSL connection state */
-//    BIO* sslserver = BIO_new_socket(server, BIO_NOCLOSE);
-//    //BIO_set_nbio(sslserver,0);
-//    SSL_set_bio(ssl, sslserver, sslserver);
-//   //SSL_set_fd(ssl, server);    /* attach the socket descriptor */  
-//    if ( SSL_connect(ssl) == FAIL )   /* perform the connection */  
-//        ERR_print_errors_fp(stderr);  
-//    else  {
-//        ShowCerts(ssl);        /* get any certs */
-//        
-//        if(SSL_get_verify_result(ssl) != X509_V_OK)
-//        {
-//            printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
-//            //exit(EXIT_FAILURE);
-//        }
-
-        system("clear");
-        printf("%s\n", get_IntroMsg());
-        int logged_in = 0; //Not logged in
-        int status = 0;
-        while (1) {
-            if(logged_in == 0) {
-                logged_in = processCommonInputs(sslServer, sslBank); //On succesful login, return 1
-                printf("Now it is %d\n", logged_in);
-                if(logged_in == 1) { //Only called once
-                    system("clear");
-                    printf("Thanks for logging in!\nYou are now able to access the full cloud commands!.\n\nLogged in as: %s\n\n", LOGGED_IN_AS_USERNAME);
-                    logged_in = 2; 
-                }
-            } else {
-                processLoggedInUserInputs(sslServer,sslBank);
+    system("clear");
+    
+    /*Beginning of actual calling*/
+    printf("%s\n", get_IntroMsg());
+    int logged_in = 0; //Not logged in
+    int status = 0;
+    while (1) {
+        if(logged_in == 0) {
+            logged_in = processCommonInputs(sslServer, sslBank); //On succesful login, return 1
+            printf("Now it is %d\n", logged_in);
+            if(logged_in == 1) { //Only called once
+                system("clear");
+                printf("Thanks for logging in!\nYou are now able to access the full cloud commands!.\n\nLogged in as: %s\n\n", LOGGED_IN_AS_USERNAME);
+                logged_in = 2; 
             }
-                    
+        } else {
+            processLoggedInUserInputs(sslServer,sslBank);
         }
-    }  
+                    
+    }
+}  
 //    close(server);         /* close socket */  
 //    SSL_CTX_free(ctx);        /* release context */  
 //    return 0;  
