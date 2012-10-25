@@ -27,6 +27,11 @@
 #define MAX_FILE_SIZE 50000
 #define FAIL    -1  
 
+
+/*Global Variable*/
+char logged_in_username[100]; 
+
+
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/
 int OpenConnection(const char *hostname, int port)  {
     int sd;  
@@ -64,7 +69,10 @@ SSL_CTX* InitCTX(void)
     }  
     return ctx;  
 }  
-  
+/**
+ * Modified to include cert verification
+ * @param ssl
+ */  
 void ShowCerts(SSL* ssl)  {
     X509 *cert;  
     char *line;  
@@ -80,9 +88,11 @@ void ShowCerts(SSL* ssl)  {
         free(line);       /* free the malloc'ed string */  
         X509_free(cert);     /* free the malloc'ed certificate copy */  
     }  
-    else  
-        printf("No certificates.\n");
-    //exit(EXIT_FAILURE);
+    else {
+        printf("No certificates. Exiting program.\n");
+        exit(EXIT_FAILURE); //Exits when the server does not have a cert
+    }  
+        
 }  
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/
 /**
@@ -234,12 +244,19 @@ char *extractFileName(char *filePath) {
 /**
  * Sends the File size and name to the Server
  * @param ssl
+ * 
  */
 void sendFileSizeNameDataTo(SSL *ssl, char *sent_packet) {
     
     int bytes_sent = SSL_write(ssl, sent_packet,30);
 }
-void processUserInputs(SSL *ssl) {
+/**
+ * 
+ * @param ssl
+ * @return 1 successful login, 0, fail 
+ */
+int processCommonInputs(SSL *ssl) {
+    int logged_in = 0; //0 = false
     char *packet_data = malloc(1000 * sizeof(char));
     printf("Input Command: ");
     char *userCommand = malloc(100 * sizeof(char));
@@ -252,7 +269,8 @@ void processUserInputs(SSL *ssl) {
     option = verifyUserCommand(userCommand);
     if(option == ERROR) {
         printf("Invalid Command. - Please retype your command or try -help.\n");
-        return;
+        logged_in = 0;
+        return logged_in;
     }
     
     switch (option) {
@@ -286,11 +304,72 @@ void processUserInputs(SSL *ssl) {
                 if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success HANDLE REPLY
                     if(strcmp(received_packet,"1") == 0) {
                         printf("Login successful!\n");
+                        sscanf(packet_data, "%*d %s %*s", logged_in_username);
+                        logged_in = 1; //success
+                        return logged_in;
                     }
                 }
             }else{
                 printf("Error: Sending packet. -login\n"); 
             }
+            break;
+        }
+        case 3: { //-addFile
+            printf("Unable to use -addFile as you are NOT logged in!\n");
+            logged_in = 0;
+            return logged_in;
+        }
+        case 4: { //-deleteFile
+            printf("Unable to use -deleteFile as you are NOT logged in!\n");
+            logged_in = 0;
+            return logged_in;
+        }
+        case 5: {//-fetchFile
+            
+            break;
+        }     
+        case 6: {//-verifyFile
+            break;
+        }
+        case 99: {//-help
+            printf("%s", get_HelpList());
+            break;
+        }
+        default: {
+            logged_in = 0;
+            return logged_in;
+        }
+    }
+    return logged_in;
+}
+void processLoggedInUserInputs(SSL *ssl) {
+
+    char *packet_data = malloc(1000 * sizeof(char));
+    printf("<%s>Input Command: ", logged_in_username);
+    char *userCommand = malloc(100 * sizeof(char));
+    scanf("%s", userCommand);
+    /**
+     * Used for verifying the user Command
+     */
+    int packet_size;
+    int option = 404; //Default error
+    option = verifyUserCommand(userCommand);
+    if(option == ERROR) {
+        printf("Invalid Command. - Please retype your command or try -help.\n");
+        return;
+    }
+    switch (option) {
+        case 0: {//-exit
+           printf("%s", processExitOption());
+           exit(EXIT_SUCCESS);
+           break;
+        }
+        case 1: {
+            printf("Unable to use -registerNewAccount as you are already LOGGED IN!.\n");
+            break;
+        }
+        case 2: {
+            printf("Unable to use -login as you are already LOGGED IN!.\n");
             break;
         }
         case 3: {//-addFile
@@ -316,7 +395,7 @@ void processUserInputs(SSL *ssl) {
             }
             break;
         }
-        case 4: {
+        case 4: {//-deleteFile
             strcpy(packet_data, deleteFile()); //Return filename to be deleted
             packet_size = strlen(packet_data);
             if(sendDataTo(ssl, packet_data, packet_size) == 1) { //Success SEND
@@ -335,8 +414,13 @@ void processUserInputs(SSL *ssl) {
             
             break;
         }     
-        case 6: //-verifyFile
-            break;      
+        case 6: {//-verifyFile
+            break;
+        }
+        case 99: {//-help
+            printf("%s", get_HelpList());
+            break;
+        }
     }
 }
 /**
@@ -351,7 +435,8 @@ int main(int count, char *strings[])
     SSL *ssl;  
     char buf[1024];  
     int bytes;  
-    char *hostname, *portnum;  
+    char *hostname, *portnum;
+    
   
     if ( count != 3 )  {  
         printf("usage: %s <hostname> <portnum>\n", strings[0]);  
@@ -372,9 +457,29 @@ int main(int count, char *strings[])
         ERR_print_errors_fp(stderr);  
     else  {
         ShowCerts(ssl);        /* get any certs */
+        
+        if(SSL_get_verify_result(ssl) != X509_V_OK)
+        {
+            printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
+            //exit(EXIT_FAILURE);
+        }
+        system("clear");
         printf("%s\n", get_IntroMsg());
+        int logged_in = 0; //Not logged in
+        int status = 0;
         while (1) {
-            processUserInputs(ssl);
+            if(logged_in == 0) {
+                logged_in = processCommonInputs(ssl); //On succesful login, return 1
+                printf("Now it is %d\n", logged_in);
+                if(logged_in == 1) { //Only called once
+                    system("clear");
+                    printf("Thanks for logging in!\nYou are now able to access the full cloud commands!.\n\nLogged in as: %s\n\n", logged_in_username);
+                    logged_in = 2; 
+                }
+            } else {
+                processLoggedInUserInputs(ssl);
+            }
+                    
         }
     }  
     close(server);         /* close socket */  

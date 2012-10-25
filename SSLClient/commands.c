@@ -39,7 +39,7 @@ char* get_IntroMsg() {
     "type -help to access list of commands available.\n\n"
     "Thank you for choosing us as your cloud storage provider!\n"
     "- Devs of Internix Cloud Services\n\n\n"
-    "Please wait while we connect you to our server...\n\n";
+    "You are now connected to our server.\n\n";
     return message;
 }
 

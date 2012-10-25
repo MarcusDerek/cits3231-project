@@ -14,7 +14,7 @@
 #include <sys/socket.h>  
 #include <sys/types.h>  
 #include <netinet/in.h>  
-#include <resolv.h>  
+#include <resolv.h> 
 
 #include "openssl/include/openssl/bio.h"
 #include "openssl/include/openssl/ssl.h"
@@ -26,7 +26,9 @@
 #define BACKLOG 10     // how many pending connections queue will hold
 #define FILESERVER_AREA "/Users/MarcusDerek/Documents/UWA/Storage"
 #define MAX_FILE_SIZE 50000
-#define FAIL    -1  
+#define FAIL    -1
+
+
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/  
 int OpenListener(int port) {
     int sd;  
@@ -105,7 +107,7 @@ void ShowCerts(SSL* ssl)
         X509_free(cert);  
     }  
     else  
-        printf("No certificates.\n");  
+        printf("No client certificates available.\n");  
 }  
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/  
 /** 
@@ -359,7 +361,8 @@ int main(int count, char *strings[])
     {  
         printf("Usage: %s <portnum>\n", strings[0]);  
         exit(0);  
-    }  
+    }
+    system("clear");
     SSL_library_init(); //Required to startup SSL 
   
     portnum = strings[1];  
@@ -369,18 +372,17 @@ int main(int count, char *strings[])
     struct sockaddr_in addr;  
     socklen_t len = sizeof(addr);  
     SSL *ssl;  
-
+    /* Server Initation */
+    printf("Server Status: Online\nWaiting for connection...\n");
     int client = accept(server, (struct sockaddr*)&addr, &len);  /* accept connection as usual */  
-    printf("Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));  
+    printf("Connection received: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));  
     ssl = SSL_new(ctx);              /* get new SSL state with context */
     BIO* sslclient = BIO_new_socket(client, BIO_NOCLOSE);
-    SSL_set_bio(ssl, sslclient, sslclient);
-    //BIO_set_nbio(sslclient, 0);
-    //SSL_set_fd(ssl, client);      /* set connection socket to SSL state */    
-    printf("Setting up done.\n");
+    SSL_set_bio(ssl, sslclient, sslclient);   
+    printf("Parameters created.\nAwaiting commands...\n");
     /* Put all processes in the WHILE LOOP */
     while(1) {
-        serviceConnection(ssl);         /* service connection */  
+        serviceConnection(ssl);         /* service connection. 1 user 1 persistant connection */  
     } 
     close(server);          /* close server socket */  
     SSL_CTX_free(ctx);         /* release context */  

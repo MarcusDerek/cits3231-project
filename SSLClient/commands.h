@@ -8,6 +8,7 @@
 #ifndef COMMANDS_H
 #define COMMANDS_H
 
+/*Global Var*/
 char* get_IntroMsg();
 char* get_HelpList();
 int verifyUserCommand();
