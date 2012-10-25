@@ -28,6 +28,9 @@
 #define MAX_FILE_SIZE 50000
 #define FAIL    -1
 
+/*Global Variable*/
+char LOGGED_IN_AS_USERNAME[100];
+int LOGGED_IN = 0; //1 logged in, 0 otherwise. Default: NOT LOGGEDIN
 
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/  
 int OpenListener(int port) {
@@ -110,6 +113,52 @@ void ShowCerts(SSL* ssl)
         printf("No client certificates available.\n");  
 }  
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/  
+/**
+ * Compress file into a buffer to send across the network
+ * @param file_size size of file
+ * @param file_path full file path
+ * @return the buffer containing the compressed file
+ */
+char* compress_File_to_stream(size_t *file_size, char *file_path)
+{
+	FILE *pFile;
+	pFile = fopen(file_path, "rb");
+
+	if(pFile == NULL)
+	{
+	 	fprintf(stderr,"Error opening file.\n");
+	    exit(EXIT_FAILURE);
+	}
+
+	//OBTAIN SIZE OF THE FILE
+	long lSize;
+	fseek(pFile, 0, SEEK_END); //Point the stream indicator all the way to the end of file
+	lSize = ftell(pFile); //Returns the size of the file based on the end indicator
+	rewind(pFile); //Point the stream indicator BACK to the start
+
+	//ALLOCATE MEMORY FOR FILE
+	char *buffer;
+	buffer = (char*) malloc (sizeof(char) * lSize); //Malloc memory
+	if (buffer == NULL)
+	{
+		fprintf(stderr,"Error allocating memory to file.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	//LOAD FILE INTO BUFFER
+	size_t result;
+	result = fread(buffer, 1, lSize, pFile);
+	printf("Size of file is %lu\n", result);
+        *file_size = result;
+	if(result != lSize)
+	{
+	    fprintf(stderr,"Error loading file into buffer.\n");
+	    exit(EXIT_FAILURE);
+	}
+	fclose(pFile);
+        printf("File Process Complete.\n");
+	return buffer;
+}
 /** 
  * @param fileNameSize
  * @param filesize
@@ -192,6 +241,33 @@ int receiveCommandFrom(SSL *ssl, char* received_packet) {
     return success;
 }
 /**
+ * Use for sending files only
+ * @param ssl - SSL packet
+ * @param packet - packet data
+ * @param packet_size - size of packet
+ * @return 0 succes, 1 otherwise (NOTE ITS OPPOSITE!!)
+ */
+int send_all_data(SSL *ssl, char *packet, int packet_size)
+{
+    int bytes_sent = 0;        // how many bytes we've sent
+    int bytes_remaining = packet_size; // how many we have left to send
+    int n;
+
+    while(bytes_sent < packet_size) {
+        n = SSL_write(ssl, packet + bytes_sent, bytes_remaining);
+        printf("%d bytes sent to client.\n", n);
+        if (n == -1) { 
+            printf("BREAK!!!!\n");
+            break; 
+        }
+        bytes_sent = bytes_sent + n;
+        bytes_remaining = bytes_remaining - n;
+    }
+	printf("Total bytes sent = %d\n", bytes_sent);
+
+    return n==-1?-1:0; // return -1 on failure, 0 on success
+}
+/**
  * @param ssl - SSL socket
  * @param sent_packet - packet data
  * @param sent_packet_size - size of data
@@ -208,6 +284,15 @@ int sendDataTo(SSL *ssl, char* sent_packet, int sent_packet_size) {
     }
     printf("Server: Packet sent successful.\n");
     return success;
+}
+/**
+ * Sends the File size and name to the Server
+ * @param ssl
+ * 
+ */
+void sendFileSizeNameDataTo(SSL *ssl, char *sent_packet) {
+    
+    int bytes_sent = SSL_write(ssl, sent_packet,30);
 }
 /**
  * BRYAN TO DO
@@ -235,7 +320,18 @@ int processRegisterNewAccount(char* received_packet) {
     int fail = 0;
     return pass; //NEED TO CHANGE
 }
+/**
+ * Ensure that user is correctly logged in
+ * Sets GLOBAL param to ACTIVE
+ * @param received_packet
+ * @param ssl
+ * @return 
+ */
 int loginToAccount(char *received_packet, SSL *ssl) {
+    char *username = malloc(1000 * sizeof(char));
+    sscanf(received_packet, "%*d %s %*s", username);
+    strcpy(LOGGED_IN_AS_USERNAME, username); //SETS THE GLOBAL USERNAME
+    LOGGED_IN = 1;
     return 1;
 }
 /**
@@ -245,7 +341,7 @@ int loginToAccount(char *received_packet, SSL *ssl) {
  */
 int addFileToCloud(SSL *ssl) {
     int success = 0;
-    printf("Prepared to receive FILE SIZE.\n");
+    printf("Prepared to receive FILESIZE & Name.\n");
     char *fileNameSize = malloc(1000 * sizeof(char));
     int file_size;
     int bytes_received;
@@ -263,12 +359,48 @@ int addFileToCloud(SSL *ssl) {
     }
     return success;
 }
+/**
+ * Delete the requested file from the cloud storage
+ * @param received_packet - file name
+ * @return 
+ */
 int deleteFileFromCloud(char *received_packet) {
     char *fileName = malloc(1000 * sizeof(char));
     sscanf(received_packet, "%*d %s %*s", fileName);
     //TO DO -- ADD BRYAN DELETE FILE HERE
     printf("Delete file: %s\n", fileName);
 }
+/**
+ * Fetch the requested file from the cloud storage
+ * @param received_packet - filename
+ * @return 
+ */
+int fetchFileFromCloud(SSL *ssl, char *received_packet) {
+    char *fileName = malloc(1000 * sizeof(char));
+    sscanf(received_packet, "%*d %s %*s", fileName);
+    char *filePath = malloc(1000 * sizeof(char));
+    //sprintf(filePath, "Storage/%s/%s", LOGGED_IN_AS_USERNAME, fileName); //UNCOMMENT WITH REAL ACCOUNT
+    sprintf(filePath, "Storage/%s", fileName);
+    size_t file_size;
+    char *fileBuffer = compress_File_to_stream(&file_size, filePath); //Specify filepath and retrieve filesize
+    char *fileSizeName = malloc(1000 * sizeof(char));
+    sprintf(fileSizeName,"0 %lu %s", file_size, fileName);
+    sendFileSizeNameDataTo(ssl, fileSizeName); //Send Filesize and name back to the CLIENT
+    printf("FileNameSize: %s\n", fileSizeName);
+    if(send_all_data(ssl, fileBuffer, file_size) == 0) { //Success
+        printf("Fetch success!\n");
+        return 1;
+    }
+    else {
+        printf("Fetch fail!\n");
+        return 0;
+    }
+}
+
+/** 
+ * Main bulk of servicing the incomming connection
+ * @param ssl
+ */
 void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */  
 {   char buf[1024];  
     char *reply = "Success!";  
@@ -339,6 +471,22 @@ void serviceConnection(SSL* ssl) /* Serve the connection -- threadable */
                 case 4: { //-deleteFile
                     status = deleteFileFromCloud(received_packet);
                     break;
+                }
+                case 5: {//-fetchFile
+                    status = fetchFileFromCloud(ssl, received_packet);
+                    if(status == 1) {
+                        printf("-fetchFile: Success\n");
+                    }
+                    else {
+                        printf("-fetchFile: Fail.\n");
+                    }
+                    break;
+                }
+                case 6: {//-verifyFile
+                    
+                }
+                case 7: {//-listAllFiles
+                    
                 }
                     
             }

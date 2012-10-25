@@ -19,6 +19,7 @@ const char list[][30] = {
     "-deleteFile", //5
     "-fetchFile",//6
     "-verifyFile",//7
+    "-listAllFiles"//8
             
 };
 
@@ -88,6 +89,8 @@ int verifyUserCommand(char* cmd) {
         return 5;
     } else if(strcmp(cmd, list[7]) == 0) { //-verifyFile
         return 6;
+    } else if(strcmp(cmd, list[8]) == 0) { //-listAllFiles
+        return 7;
     }
     return ERROR;
 }
@@ -173,5 +176,11 @@ char* fetchFile() {
     strcpy(output, fileName);
     output = concatSentence(5, fileName, ""); //5 = fetchFile
     return output;
+}
+char* verifyFile() {
+    
+}
+char* listAllFiles() {
+    
 }
 
