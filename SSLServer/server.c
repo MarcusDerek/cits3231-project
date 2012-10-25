@@ -363,7 +363,10 @@ int addFileToCloud(SSL *ssl) {
         exit(EXIT_FAILURE);
     }
     printf("Moving file to directory %s\n", LOGGED_IN_AS_USERNAME);
-    addFileToDirectory(fileName, LOGGED_IN_AS_USERNAME);
+    char *actualFileName = malloc(1000 * sizeof(char));
+    strcat(actualFileName,"Storage/");
+    strcat(actualFileName,fileName);
+    addFileToDirectory(actualFileName, LOGGED_IN_AS_USERNAME);
     return success;
 }
 /**

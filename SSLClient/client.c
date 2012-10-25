@@ -532,7 +532,7 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
             break;
         }
         case 9: { //-checkBankFunds
-            printf("-CheckBandFunds Command Received.\n");
+            printf("-CheckBankFunds Command Received.\n");
             strcpy(packet_data, checkBankFunds());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
