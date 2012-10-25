@@ -23,6 +23,8 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+#define FAIL    -1
+
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/  
 int OpenListener(int port) {
     int sd;  
@@ -108,6 +110,24 @@ void ShowCerts(SSL* ssl)
 /*
  * 
  */
+void serviceConnection(SSL *ssl) {
+    char buf[1024];  
+    char *reply = "Success!";  
+    int sd, bytes;  
+  
+    if ( SSL_accept(ssl) == FAIL )  {
+        /* do SSL-protocol accept */  
+        ERR_print_errors_fp(stderr);
+        printf("Error OCCURED!\n");
+    }
+    else {   
+        ShowCerts(ssl);        /* get any certificates */
+        while(1) {
+            //Add stuff here
+        }
+    }
+
+}
 int main(int count, char *strings[])  
 {   SSL_CTX *ctx;  
     int server;  
@@ -129,7 +149,7 @@ int main(int count, char *strings[])
     socklen_t len = sizeof(addr);  
     SSL *ssl;  
     /* Server Initation */
-    printf("Server Status: Online\nWaiting for connection...\n");
+    printf("Server Status: Online\nCloud Bank fully operational\nWaiting for connection on port: %s...\n", portnum);
     int client = accept(server, (struct sockaddr*)&addr, &len);  /* accept connection as usual */  
     printf("Connection received: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));  
     ssl = SSL_new(ctx);              /* get new SSL state with context */

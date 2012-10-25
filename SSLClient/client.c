@@ -421,7 +421,7 @@ int listAllFilesOnServer(SSL *ssl) {
  * @param ssl
  * @return 1 successful login, 0, fail 
  */
-int processCommonInputs(SSL *ssl) {
+int processCommonInputs(SSL *sslServer, SSL *sslBank) {
     int logged_in = 0; //0 = false
     char *packet_data = malloc(1000 * sizeof(char));
     printf("Input Command: ");
@@ -449,9 +449,9 @@ int processCommonInputs(SSL *ssl) {
             strcpy(packet_data, registerNewAccount());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
-            if(sendDataTo(ssl, packet_data, packet_size) == 1) {//Success SEND
+            if(sendDataTo(sslServer, packet_data, packet_size) == 1) {//Success SEND
                 char *received_packet = malloc (1000 * sizeof(char));
-                if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success RECEIVE REPLY
+                if(receiveDataFrom(sslServer, received_packet, 30000) == 1) {//Success RECEIVE REPLY
                     if(strcmp(received_packet,"1") == 0) {
                         printf("Account registration successful!\n");
                     }
@@ -465,9 +465,9 @@ int processCommonInputs(SSL *ssl) {
             strcpy(packet_data, loginToAccount());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
-            if(sendDataTo(ssl, packet_data, packet_size) == 1) {//Success SEND
+            if(sendDataTo(sslServer, packet_data, packet_size) == 1) {//Success SEND
                 char *received_packet = malloc (1000 * sizeof(char));
-                if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success HANDLE REPLY
+                if(receiveDataFrom(sslServer, received_packet, 30000) == 1) {//Success HANDLE REPLY
                     if(strcmp(received_packet,"1") == 0) {
                         printf("Login successful!\n");
                         sscanf(packet_data, "%*d %s %*s", LOGGED_IN_AS_USERNAME);
@@ -520,7 +520,7 @@ int processCommonInputs(SSL *ssl) {
  * Access to this function is only alllowed when USER is LOGGED IN
  * @param ssl ssl socket
  */
-void processLoggedInUserInputs(SSL *ssl) {
+void processLoggedInUserInputs(SSL *sslServer, SSL* sslBank) {
 
     char *packet_data = malloc(1000 * sizeof(char));
     printf("<%s>Input Command: ", LOGGED_IN_AS_USERNAME);
@@ -552,7 +552,7 @@ void processLoggedInUserInputs(SSL *ssl) {
         }
         case 3: {//-addFile
             int status = 0;
-            status = sendFileToServer(ssl);
+            status = sendFileToServer(sslServer);
             if(status == 1) {//Successful
                 printf("Your file has been added to your storage!\n");
             }
@@ -563,7 +563,7 @@ void processLoggedInUserInputs(SSL *ssl) {
         }
         case 4: {//-deleteFile
             int status = 0;
-            status = deleteFileFromServer(ssl);
+            status = deleteFileFromServer(sslServer);
             if(status == 1) {//Successful
                 printf("Your file has been deleted from your storage!\n");
             }
@@ -575,7 +575,7 @@ void processLoggedInUserInputs(SSL *ssl) {
         case 5: {//-fetchFile
             int status = 0;
             char *packet = fetchFile();
-            status = receiveFileFromServer(ssl, packet);
+            status = receiveFileFromServer(sslServer, packet);
             if(status == 1) {
                 printf("Your file has been fetched from storage!\n");
             }
@@ -586,7 +586,7 @@ void processLoggedInUserInputs(SSL *ssl) {
         }     
         case 6: {//-verifyFile
             int status = 0;
-            status = verifyFileOnServer(ssl);
+            status = verifyFileOnServer(sslServer);
             if(status == 1) {
                 printf("Your file has been verified successfully.\n");
             }
@@ -597,7 +597,7 @@ void processLoggedInUserInputs(SSL *ssl) {
         }
         case 7: {//listAllFiles
             int status = 0;
-            status = listAllFilesOnServer(ssl);
+            status = listAllFilesOnServer(sslServer);
             if(status == 1) {
                 printf("Your files have been listed successfully.\n");
             }
@@ -612,29 +612,17 @@ void processLoggedInUserInputs(SSL *ssl) {
         }
     }
 }
-/**
- * Main execution
- * @param count - IP Address
- * @param strings - Port number
- * @return 
- */
-int main(int count, char *strings[])  
-{   SSL_CTX *ctx;  
+SSL* connectToCloudServer(char *strings[]) {
+    SSL_CTX *ctx;  
     int server;  
     SSL *ssl;  
     char buf[1024];  
     int bytes;  
     char *hostname, *portnum;
     
-  
-    if ( count != 3 )  {  
-        printf("usage: %s <hostname> <portnum>\n", strings[0]);  
-        exit(0);  
-    }  
-    SSL_library_init();  
-    hostname=strings[1];  
-    portnum=strings[2];  
-  
+    hostname=strings[1];  // SERVER ADDRESS
+    portnum=strings[2]; // SERVER PORT
+    
     ctx = InitCTX();  
     server = OpenConnection(hostname, atoi(portnum));  
     ssl = SSL_new(ctx);      /* create new SSL connection state */
@@ -642,23 +630,111 @@ int main(int count, char *strings[])
     //BIO_set_nbio(sslserver,0);
     SSL_set_bio(ssl, sslserver, sslserver);
    //SSL_set_fd(ssl, server);    /* attach the socket descriptor */  
-    if ( SSL_connect(ssl) == FAIL )   /* perform the connection */  
-        ERR_print_errors_fp(stderr);  
-    else  {
-        ShowCerts(ssl);        /* get any certs */
-        
-        if(SSL_get_verify_result(ssl) != X509_V_OK)
-        {
-            printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
-            //exit(EXIT_FAILURE);
-        }
+    if ( SSL_connect(ssl) == FAIL ) {  /* perform the connection */  
+        ERR_print_errors_fp(stderr);
+    }
+//    else {
+//            ShowCerts(ssl);        /* get any certs */
+//            if(SSL_get_verify_result(ssl) != X509_V_OK) {
+//                printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
+//                exit(EXIT_FAILURE);
+//            }
+//    }
+    return ssl;
+}
+SSL* connectToCloudBank(char *strings[]) {
+    SSL_CTX *ctx;  
+    int server;  
+    SSL *ssl;  
+    char buf[1024];  
+    int bytes;  
+    char *hostname, *portnum;
+    
+    hostname=strings[3]; //BANK ADDRESS  
+    portnum=strings[4]; //BANK PORT
+    printf("Hostname: %s | Port: %s\n", hostname, portnum);
+    
+    ctx = InitCTX();  
+    server = OpenConnection(hostname, atoi(portnum));  
+    ssl = SSL_new(ctx);      /* create new SSL connection state */
+    BIO* sslserver = BIO_new_socket(server, BIO_NOCLOSE);
+    //BIO_set_nbio(sslserver,0);
+    SSL_set_bio(ssl, sslserver, sslserver);
+    printf("OMGGGG\n");
+   //SSL_set_fd(ssl, server);    /* attach the socket descriptor */  
+    if ( SSL_connect(ssl) == FAIL ) {  /* perform the connection */
+        printf("FAIL TO CONNECT\n");
+        ERR_print_errors_fp(stderr);
+        printf("DONE1!!!\n");
+    }
+    else {
+        printf("FUCK YEAH!\n");
+    }
+//    else {
+//            ShowCerts(ssl);        /* get any certs */
+//            if(SSL_get_verify_result(ssl) != X509_V_OK) {
+//                printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
+//                //exit(EXIT_FAILURE);
+//            }
+//    }
+    printf("DONE2!!!\n");
+    return ssl;
+  
+}
+/**
+ * Main execution
+ * @param count - IP Address
+ * @param strings - Port number
+ * @return 
+ */
+int main(int count, char *strings[]) { 
+//{   SSL_CTX *ctx;  
+//    int server;  
+//    SSL *ssl;  
+//    char buf[1024];  
+//    int bytes;  
+//    char *hostname, *portnum;
+    
+  
+    if ( count != 5 )  {  
+        printf("usage: %s <server_hostname> <server_portnum> <bank_hostname> <bank_portnum>\n", strings[0]);  
+        exit(0);  
+    }
+
+
+    SSL_library_init(); 
+    SSL *sslServer = connectToCloudServer(strings);
+    printf("Created SSLSERVER.\n");
+    SSL *sslBank = connectToCloudBank(strings);
+    printf("Created SSLCLOUDBANK\n");
+//    hostname=strings[1];  
+//    portnum=strings[2];  
+  
+//    ctx = InitCTX();  
+//    server = OpenConnection(hostname, atoi(portnum));  
+//    ssl = SSL_new(ctx);      /* create new SSL connection state */
+//    BIO* sslserver = BIO_new_socket(server, BIO_NOCLOSE);
+//    //BIO_set_nbio(sslserver,0);
+//    SSL_set_bio(ssl, sslserver, sslserver);
+//   //SSL_set_fd(ssl, server);    /* attach the socket descriptor */  
+//    if ( SSL_connect(ssl) == FAIL )   /* perform the connection */  
+//        ERR_print_errors_fp(stderr);  
+//    else  {
+//        ShowCerts(ssl);        /* get any certs */
+//        
+//        if(SSL_get_verify_result(ssl) != X509_V_OK)
+//        {
+//            printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
+//            //exit(EXIT_FAILURE);
+//        }
+
         system("clear");
         printf("%s\n", get_IntroMsg());
         int logged_in = 0; //Not logged in
         int status = 0;
         while (1) {
             if(logged_in == 0) {
-                logged_in = processCommonInputs(ssl); //On succesful login, return 1
+                logged_in = processCommonInputs(sslServer, sslBank); //On succesful login, return 1
                 printf("Now it is %d\n", logged_in);
                 if(logged_in == 1) { //Only called once
                     system("clear");
@@ -666,12 +742,12 @@ int main(int count, char *strings[])
                     logged_in = 2; 
                 }
             } else {
-                processLoggedInUserInputs(ssl);
+                processLoggedInUserInputs(sslServer,sslBank);
             }
                     
         }
     }  
-    close(server);         /* close socket */  
-    SSL_CTX_free(ctx);        /* release context */  
-    return 0;  
-}  
+//    close(server);         /* close socket */  
+//    SSL_CTX_free(ctx);        /* release context */  
+//    return 0;  
+ 

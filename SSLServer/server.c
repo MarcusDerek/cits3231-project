@@ -562,7 +562,7 @@ int main(int count, char *strings[])
     socklen_t len = sizeof(addr);  
     SSL *ssl;  
     /* Server Initation */
-    printf("Server Status: Online\nWaiting for connection...\n");
+    printf("Server Status: Online\nCloud Server fully operational.\nWaiting for connection on port: %s...\n",portnum );
     int client = accept(server, (struct sockaddr*)&addr, &len);  /* accept connection as usual */  
     printf("Connection received: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));  
     ssl = SSL_new(ctx);              /* get new SSL state with context */
