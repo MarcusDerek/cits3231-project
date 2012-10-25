@@ -40,27 +40,6 @@ void createUserDirectory(char* username, int permission)
 }
 
 /**
- directToUserDirectory
- Brings the user to its directory
- 
- @username Takes the name that is specified by the user
-
- */
-
-void directToUserDirectory(char* username)
-{
-    char buffer[50];
-    int n = 0;
-    n = sprintf(buffer, "Storage/%s", username); //path need to be change
-    //const char * const direction = "/users/bryankho/desktop";
-    if (chdir (buffer) == -1)
-    {
-        printf ("chdir failed - %s\n", strerror (errno));
-    }
-    
-}
-
-/**
  addFileToDirectory
  Moves the file into the directory (copying)
  
@@ -71,21 +50,38 @@ void directToUserDirectory(char* username)
 
 void addFileToDirectory(char* file, char* username)
 {
-    int result;
-    
-    char* source = malloc(1000 * sizeof(char));
-    source = file;
-    
+    char* creation = malloc(1000 * sizeof(char));
     char* destination = malloc(1000 * sizeof(char));
+    char* source = malloc(1000 * sizeof(char));
+    
+    source = extractFileName(file);
+    
     strcat(destination,"Storage/");
-    strcat(destination,username);
+    strcat(destination,username); //destination of the file that needs to be transferred
     
-    result= rename( source , destination );
+    FILE * create;
     
-    if ( result == 0 )
+    if (create!=NULL)
+    {
+        fputs ("fopen example",create);
+        fclose (create);
+    }
+    
+    creation = destination; //the files that needs to be replaced
+    strcat(creation,"/");
+    strcat(creation,source);
+    
+    create = fopen(creation,"W");
+    
+    if ( rename(file,creation) )
+    {
+        printf("this is source %s\n this is destination %s\n",source,destination);
         puts ( "File successfully renamed" );
+    }
     else
         perror( "Error renaming file" );
+    
+    fclose(create);
         
 }
 
@@ -322,7 +318,31 @@ int verifyIfPasswordExist(char* username)
     return 0;
     
 }
- 
+
+
+char* extractFileName(char* filePath)
+{
+    char* copyFilePath = malloc(1000 * sizeof(char));
+    strcpy(copyFilePath,filePath);
+    char* pch;
+    char* fileName;
+    
+    pch = strchr(copyFilePath,'/');
+    while (pch!=NULL)
+    {
+        pch = strchr((pch+1),'/');
+        
+        if (pch != NULL)
+        {
+            fileName = pch;
+            fileName++;
+        }
+           
+    }
+    printf("Actual file name is = %s\n",fileName);
+    return fileName;
+}
+
     
 int main (void)
 {

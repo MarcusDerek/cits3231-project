@@ -10,17 +10,11 @@
 #define COMMANDS_H
 
 //FileSystem Variables
-const char * const PATH = "/users/bryankho/desktop"; //path needs to be changed to accomodate
-char* filePath = "/users/bryankho/desktop/testFile.rtf"; //testerFile pathway to test addFileToDirectory
-char* filePath2 = "/users/bryankho/desktop/movablefile.txt"; //testerFile pathway to test addFileToDirectory
-char* filePath3 = "/users/bryankho/desktop/MarcusDerek/file.txt"; //deletion testing
-char* directoryCopy; //for addFileToDirectory function
-
-
+char* filePath2 = "/users/bryankho/desktop/movablefile.txt"; //tester file that needs to be moved
+char* directoryCopy;
 
 //FileSystem Call Functions
-void createUserDirectory(char* username,int permission); //to be change to more simpler terms
-void directToUserDirectory(char* username);
+void createUserDirectory(char* username,int permission);
 void addFileToDirectory(char* file,char* username);
 void deleteFileFromDirectory(char* filename, char* username);
 int checkFileExistence(char* filename, char* username);
@@ -31,9 +25,9 @@ int addToPasswordFile(char* username, char* password);
 int copy_file(char *old_filename, char *new_filename);
 int copyFiles(char* source_file, char* target_file);
 int verifyIfPasswordExist(char* username);
+char* extractFileName(char *filePath);
 
 //BankServer Call Functions
 void checkUserBalance(char* username);
-
 
 #endif
