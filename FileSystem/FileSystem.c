@@ -212,78 +212,6 @@ int addToPasswordFile(char* username, char* password)
  Helper Methods
  ******/
 
-int copy_file(char* source, char* dest)
-{
-    size_t len = 0 ;
-
-    source;
-    FILE *fp;
-    fp=fopen(source,"w");
-    
-    char buffer[BUFSIZ] = { '\0' } ;
-    FILE* in = fopen( source, "rb" ) ;
-    FILE* out = fopen( dest, "wb" ) ;
-    if( in == NULL || out == NULL )
-    {
-        perror( "An error occured while opening files!!!" ) ;
-        in = out = 0 ;
-    }
-    else    // add this else clause
-    {
-        while( (len = fread( buffer, BUFSIZ, 1, in)) > 0 )
-        {
-            fwrite( buffer, BUFSIZ, 1, out ) ;
-        }
-        
-        fclose(in) ;
-        fclose(out) ;
-        
-        if(remove(source) )
-        {
-            printf( "File successfully moved. Thank you for using this mini app" ) ;
-        }
-        else
-        {
-            printf( "An error occured in deleting the file!!!" ) ;
-        }
-    }
-    return 0 ;
-}
-
-int copyFiles(char* source_file, char* target_file)
-{
-    char ch;
-    
-    FILE *source, *target;
-    
-    source = fopen(source_file, "r");
-    
-    if( source == NULL )
-    {
-        printf("Press any key to exit...\n");
-        exit(EXIT_FAILURE);
-    }
-        
-    target = fopen(target_file, "w");
-    
-    if( target == NULL )
-    {
-        fclose(source);
-        printf("Press any key to exit...\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    while( ( ch = fgetc(source) ) != EOF )
-        fputc(ch, target);
-    
-    printf("File copied successfully.\n");
-    
-    fclose(source);
-    fclose(target);
-    
-    return 0;
-}
-
 int verifyIfPasswordExist(char* username)
 {
     char* filePathing = malloc(1000 * sizeof(char));
@@ -356,5 +284,6 @@ int main (void) /* Test Code Here */
         // addToPasswordFile("Marcus", "123456");
         // addToPasswordFile("Amin","IamIndian");
         // addToPasswordFile("BryanKho","donttelllanyone");
+     addToPasswordFile("Teller","donttelll");
         // verifyIfPasswordExist("Marcus");
 }

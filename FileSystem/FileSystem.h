@@ -22,8 +22,6 @@ char* fetchListOfFiles(char* username);
 int addToPasswordFile(char* username, char* password);
 
 //helper methods from filesystem
-int copy_file(char *old_filename, char *new_filename);
-int copyFiles(char* source_file, char* target_file);
 int verifyIfPasswordExist(char* username);
 char* extractFileName(char *filePath);
 
