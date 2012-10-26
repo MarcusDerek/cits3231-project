@@ -8,6 +8,7 @@
 //SSL-Bank.c 
 
 #include <stdio.h>  
+#include <stdlib.h>
 #include <errno.h>  
 #include <unistd.h>    
 #include <resolv.h>  
@@ -20,8 +21,11 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <stdbool.h>
+#include <openssl/sha.h>
 
 #define FAIL    -1
+#define BANK_SALT "banksalt"
 
 /*Global Variable*/
 char LOGGED_IN_AS_USERNAME[100];
@@ -292,6 +296,131 @@ SSL* connectToCloudServer(char *strings[]) {
     printf("Server Status: %d\n", statusServer);
     return ssl;
 }
+
+char *generate_hash(char *input)
+{
+	SHA_CTX c;
+	unsigned char hash[128];
+	
+	SHA_Init(&c);
+        char *salted = malloc(512 * sizeof(char));
+	char *line = malloc(512 * sizeof(char));
+	strcat(salted,input);
+        strcat(salted,BANK_SALT);
+	SHA_Update(&c,salted,strlen(input));
+	
+	SHA_Final(hash,&c);
+	
+	int i = 0;
+	
+	while ( i<SHA_DIGEST_LENGTH) {
+		sprintf(line,"%02x",(unsigned int)hash[i]);
+		i++;
+	}
+	return line;
+}
+
+void create_account(char *email, char *password, char *balance){
+	FILE *fp;
+	
+	if ((fp = fopen("password_file.file","ra"))==NULL) {
+            if((fp = fopen("password_file.file","w"))==NULL){
+                printf("Error generating the password file\n");
+                exit(EXIT_FAILURE);
+            }
+            if((fp = fopen("password_file.file","ra"))==NULL){
+                printf("Error generating the password file\n");
+            }
+	}
+	char *line = malloc(256 * sizeof(char));
+	bool found = false;
+	while(1){
+		if (feof(fp)||ferror(fp)) {
+			break;
+		}
+		fgets(line, sizeof(line), fp);
+                char *email_in_list = malloc(512 * sizeof(char));
+                sscanf(line,"%s %*s",email_in_list);
+		if(strcmp(email_in_list,email) == 0){
+			found = true;
+			printf("email is already registered\n");
+			break;
+		}
+	}
+	if(found){
+            printf("creating new account aborted.\n");
+        }
+	else {
+            fprintf(fp,"%s %s %s\n",email, (generate_hash(password)),balance);
+	}
+}
+
+
+bool withdraw(char *account, char *amount){
+	FILE *fp;
+	
+	if ((fp = fopen("password_file.file","rw"))==NULL) {
+		//error
+	}
+	char *line = malloc(256 * sizeof(char));
+	bool found = false;
+	while(1){
+		if (feof(fp)||ferror(fp)) {
+			break;
+		}
+		fgets(line, sizeof(line), fp);
+		char *email_in_list = malloc(512 * sizeof(char));
+                sscanf(line,"%s %*s",email_in_list);
+		if(strcmp(email_in_list,account) == 0){
+			char *user = malloc(128 * sizeof(char));
+			char *hash = malloc(256 * sizeof(char));
+			char *balance = malloc(128 * sizeof(char));
+			sscanf("%s %s %s",user,hash,balance);
+			
+			if(atoi(balance) - atoi(amount) < 0){
+				printf("not enough balance!\n");
+			}
+			else {
+				sprintf(balance,"%d",(atoi(balance) - atoi(amount)));
+				sprintf(line,"%s %s %s",user, hash, balance);
+			}
+
+			return true;
+		}
+	}
+	return false;
+	
+
+}
+char *check_balance(char *account){
+	FILE *fp;
+	
+	if ((fp = fopen("password_file.file","rw"))==NULL) {
+		//error
+	}
+	char *line = malloc(256 * sizeof(char));
+	bool found = false;
+	while(1){
+		if (feof(fp)||ferror(fp)) {
+			break;
+		}
+		fgets(line, sizeof(line), fp);
+		char *email_in_list = malloc(512 * sizeof(char));
+                sscanf(line,"%s %*s",email_in_list);
+		if(strcmp(email_in_list,account) == 0){
+                    return line;
+                }
+        }
+        return "unable to retrieve the balance";
+	
+}
+
+
+
+bool compare_hash(char *hash_alpha, char *hash_bravo){
+    return strcmp(hash_alpha, hash_bravo);
+}
+
 /**
  * Ensure that user is correctly logged in
  * Sets GLOBAL param to ACTIVE
@@ -305,8 +434,39 @@ int loginToBankAccount(char *received_packet, SSL *ssl) {
     sscanf(received_packet, "%*d %s %s", username, password);
     strcpy(LOGGED_IN_AS_USERNAME, username); //SETS THE GLOBAL USERNAME
     //TAIGA TO DO
-    LOGGED_IN = 1;
-    return 1; //1 success, 0 otherwise
+    FILE *fp;
+    if ((fp = fopen("password_file.file","r"))==NULL) {
+		//error
+	}
+	char *line = malloc(256 * sizeof(char));
+	bool found = false;
+	while(1){
+		if (feof(fp)||ferror(fp)) {
+			break;
+		}
+		fgets(line, sizeof(line), fp);
+		char *email_in_list = malloc(512 * sizeof(char));
+                sscanf(line,"%s %*s",email_in_list);
+		if(strcmp(email_in_list,LOGGED_IN_AS_USERNAME) == 0){
+			char *user = malloc(128 * sizeof(char));
+			char *hash = malloc(256 * sizeof(char));
+			char *balance = malloc(128 * sizeof(char));
+			sscanf("%s %s %s",user,hash,balance);
+			if (strcmp(hash,generate_hash(password))==0) {
+				printf("login successful\n");
+                                LOGGED_IN = 1;
+                                return 1;
+                                
+			}
+                        else{
+                            return 0;
+                        }
+                        
+		}
+	}
+        
+    
+    return 0; //1 success, 0 otherwise
 }
 int addCloudMoneyToServer(SSL *sslServer, char *cloudMoney) {
     //char *cloudMonies = malloc(1000 * sizeof(char));
@@ -346,6 +506,9 @@ void serviceConnection(SSL *sslClient, SSL *sslServer) {
                     receiveCommandFrom(sslClient, amountToBuy);
                     printf("Amount to buy = %s\n", amountToBuy);
                     //TAIGA - TO DEDUCT MONEY FROM FILE + cloudMoney RETURN FAIL OR SUCCESS
+                    if(withdraw(LOGGED_IN_AS_USERNAME,amountToBuy) == false){
+                        printf("aborting\n");
+                    }
                     //MARCUS - TO DO SUCCES OR FAIL STATEMENT
                     int statusMoney = addCloudMoneyToServer(sslServer, amountToBuy);
                     //sendDataTo(sslClient, "1", 10);
@@ -360,7 +523,8 @@ void serviceConnection(SSL *sslClient, SSL *sslServer) {
                 status = loginToBankAccount(received_packet, sslClient); // 9 Marcus 123456
                 if(status == 1) {//Success 
                     //TAIGA - CHECK FUNDS IN BANK FILE AND GRAB IT
-                    //sendDataTo(sslClient, FUNDS, 10);
+                    char *FUNDS = check_balance(LOGGED_IN_AS_USERNAME);
+                    sendDataTo(sslClient, FUNDS, 10);
                 }
             }
         }
