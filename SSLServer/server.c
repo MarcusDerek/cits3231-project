@@ -1,9 +1,12 @@
 /* 
  * File:   main.c
- * Author: MarcusDerek
+ * Team: 
+ * Marcus Derek - 11016403
+ * Taiga Yano - 20698782
+ * Bryan Kho - 20714477
+ * 
  * SERVER
  *
- * Created on October 23, 2012, 6:36 PM
  */
 
 //SSL-Server.c  
@@ -16,6 +19,7 @@
 #include <netinet/in.h>  
 #include <resolv.h>
 #include "FileSystem.h"
+#include <stdbool.h>
 
 //#include "openssl/include/openssl/bio.h"
 //#include "openssl/include/openssl/ssl.h"
@@ -32,6 +36,7 @@
 #define FILESERVER_AREA "/Users/MarcusDerek/Documents/UWA/Storage"
 #define MAX_FILE_SIZE 50000
 #define FAIL    -1
+#define SALT "password"
 
 /*Global Variable*/
 char LOGGED_IN_AS_USERNAME[100];
@@ -238,7 +243,7 @@ int receiveFileNameSizeFrom(SSL *ssl, char *received_packet) {
  */
 int receiveCommandFrom(SSL *ssl, char* received_packet) {
     int success = 1;
-    int bytes_received = SSL_read(ssl, received_packet, 30);
+    int bytes_received = SSL_read(ssl, received_packet, 50);
     if(bytes_received == 0) {
         printf("Connection terminated abruptly.\n");
         exit(EXIT_FAILURE);
@@ -309,35 +314,114 @@ void sendFileSizeNameDataTo(SSL *ssl, char *sent_packet) {
 //   mkdir(fullPathName,0777);
 //   printf("Created Directory at: %s\n", fullPathName);
 //}
+
+/**
+ * WORKING!
+ * @param input
+ * @return 
+ */
+char *generate_hash(char *input){
+    char *salted = malloc((strlen(input)+2) * sizeof(char));
+    strcat(salted,input);
+    strcat(salted,SALT);
+    unsigned char hash[16];
+    SHA1(salted,strlen(salted),hash);
+    unsigned char *final = malloc(strlen(hash) * sizeof(unsigned char));
+    int i;
+    for (i = 0; i < strlen(hash);i++){
+        sprintf(final,"%s%uc",final,hash[i]);
+    }
+    return final;
+}
+
 /**
  * Register new Account
  * @param received_packet - packet data
  * @return 1 success, 0 otherwise
  */
 int processRegisterNewAccount(char* received_packet) {
-    char *userName = malloc(100 * sizeof(char));
-    char *password = malloc(100 * sizeof(char));
-    sscanf(received_packet, "%*d %s %s", userName, password);
-    printf("Registering user - %s\n", userName);
-    createUserDirectory(userName); //BRYAN - return pass or fail
+    int found = 0;
+    char* username = malloc(1000 * sizeof(char));
+    char* password = malloc(1000 * sizeof(char));
+    sscanf(received_packet, "%*d %s %s", username, password);
     
-    int pass = 1;
-    int fail = 0;
-    return pass; //NEED TO CHANGE
+    createUserDirectory(username);
+    
+    FILE *fp;
+    
+    if((fp = fopen("password_file.txt","r+")) == NULL) {//need to append{
+        printf("Error: Opening file.\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    while(!feof(fp)) {
+        char* line = malloc(1000 * sizeof(char));
+        fgets(line, 1000, fp);
+        printf("Scanning: %s\n", line);
+        char* username2 = malloc(1000* sizeof(char));
+        char* password2 = malloc(1000* sizeof(char));
+        sscanf(line,"%s %s %*s",username2,password2);
+        if(strcmp(username2,username) == 0) { //If found.. quit! Bryan say so!
+            found = 1;
+            break;
+        }
+        
+    }
+    if(found == 1) {
+        printf("User already exist in system!.\n\n");
+        fclose(fp);
+        return 0;
+    }
+    else {
+        printf("Creating new user %s, password %s.\n",username,password);
+        char *buffer = malloc (1000 * sizeof (char));
+        sprintf(buffer,"%s %s 0\n", username, generate_hash(password));
+        fputs(buffer,fp);
+        fclose(fp);
+        return 1;
+    }
+
 }
+
+
 /**
  * Ensure that user is correctly logged in
  * Sets GLOBAL param to ACTIVE
  * @param received_packet
  * @param ssl
- * @return 
+ * @return 1 succes, 0 fail
  */
 int loginToAccount(char *received_packet, SSL *ssl) {
+    int found;
     char *username = malloc(1000 * sizeof(char));
-    sscanf(received_packet, "%*d %s %*s", username);
-    strcpy(LOGGED_IN_AS_USERNAME, username); //SETS THE GLOBAL USERNAME
-    LOGGED_IN = 1;
-    return 1;
+    char *password = malloc(1000 * sizeof(char));
+    sscanf(received_packet, "%*d %s %s", username,password);
+    FILE *fp;
+    if((fp = fopen("password_file.txt","r"))==NULL){
+        printf("Error reading the password file\n");
+        exit(EXIT_FAILURE);
+    }
+    char *hashedPassword = generate_hash(password);
+    while(!feof(fp)) {
+        char* line = malloc(1000 * sizeof(char));
+        fgets(line, 1000, fp);
+        //printf("Scanning: %s\n", line);
+        char* username2 = malloc(1000* sizeof(char));
+        char* password2 = malloc(1000* sizeof(char));
+        sscanf(line,"%s %s %*s",username2,password2);
+        printf("\n%s\n%s\n",hashedPassword , password2);
+        if(strcmp(username2,username) == 0) { //If found.. quit! Bryan say so!
+            if(strcmp(hashedPassword,password2) == 0) { //Success
+                strcpy(LOGGED_IN_AS_USERNAME, username); //SETS THE GLOBAL USERNAME
+                LOGGED_IN = 1;
+                return 1; //success
+            }
+        }
+    }
+    return 0;
+
+
+	
 }
 /**
  * Add files to the cloud server

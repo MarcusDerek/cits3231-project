@@ -1,11 +1,10 @@
-//
-//  FileSystem.c
-//  FileSystem
-//
-//  Created by Bryan Kho on 14/10/2012.
-//  Copyright (c) 2012 . All rights reserved.
-//
-
+/*  FileSystem.c
+ * 
+ * Team: 
+ * Marcus Derek - 11016403
+ * Taiga Yano - 20698782
+ * Bryan Kho - 20714477
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +19,8 @@
 #include <locale.h>
 #include <langinfo.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <openssl/sha.h>
 
 #include "FileSystem.h"
 
@@ -270,4 +271,75 @@ char* extractFileName(char* filePath)
            
     }
     return fileName;
+}
+
+//void generate_hash(char *filepath, char *destination)
+//{
+//	FILE *fpin;
+//	FILE *fpout;
+//	SHA_CTX c;
+//	unsigned char hash[128];
+//	
+//	if((fpin = fopen(filepath,"r")) == NULL){
+//		fprintf(stderr, "failed to read file\n");
+//		exit(EXIT_FAILURE);
+//	}
+//	
+//	SHA_Init(&c);
+//	char *line = malloc(512 * sizeof(char));
+//	
+//	while (!(ferror(fpin)||feof(fpin))){
+//		fgets(line,sizeof(line),fpin);
+//		SHA_Update(&c,line,sizeof(line));
+//	}
+//	
+//	SHA_Final(hash,&c);
+//	if((fpout = fopen(destination,"w")) == NULL){
+//		fprintf(stderr, "failed to prepare file for writing\n");
+//		exit(EXIT_FAILURE);
+//	}   
+//	int i = 0;
+//	
+//	while ( i<SHA_DIGEST_LENGTH) {
+//		fprintf(fpout,"%02x",(unsigned int)hash[i]);
+//		i++;
+//	}
+//	fclose(fpin);
+//	fclose(fpout);
+//}
+
+bool compare_hash(char *filepath_alpha, char *filepath_bravo){
+	FILE *alpha;
+	FILE *bravo;
+	
+	if((alpha = fopen(filepath_alpha,"r")) == NULL){
+		fprintf(stderr, "failed to read file\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	if((bravo = fopen(filepath_bravo,"r")) == NULL){
+		fprintf(stderr, "failed to read file\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	char *a = malloc(512 * sizeof(char));
+	char *b = malloc(512 * sizeof(char));
+	
+	for (;;){
+		
+		if (feof(alpha)||feof(bravo)) {
+			break;
+		}
+		if (ferror(alpha)||ferror(bravo)){
+			fprintf(stderr,"ferror\n");
+		}
+		fgets(a,sizeof(a),alpha);
+		fgets(b,sizeof(b),bravo);
+		if(strcmp(a,b) == 0){
+			return false;
+			break;
+		}
+	}
+	
+	return true;
 }

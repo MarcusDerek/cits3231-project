@@ -1,9 +1,13 @@
 /* 
  * File:   main.c
- * Author: MarcusDerek
+ * 
+ * Team: 
+ * Marcus Derek - 11016403
+ * Taiga Yano - 20698782
+ * Bryan Kho - 20714477
+ * 
  * CLIENT
  *
- * Created on October 23, 2012, 6:36 PM
  */
 
 //#include "openssl/include/openssl/bio.h"
@@ -75,27 +79,46 @@ SSL_CTX* InitCTX(void)
  * Modified to include cert verification
  * @param ssl
  */  
-void ShowCerts(SSL* ssl)  {
+void ShowBankCerts(SSL* ssl)  {
     X509 *cert;  
-    char *line;  
+    char *line;
+    char commonName[512];
+    char hostname[] = "Cloud Bank";
   
     cert = SSL_get_peer_certificate(ssl); /* get the server's certificate */  
-    if ( cert != NULL )  {  
-        printf("Server certificates:\n");  
-        line = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);  
-        printf("Subject: %s\n", line);  
-        free(line);       /* free the malloc'ed string */  
-        line = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);  
-        printf("Issuer: %s\n", line);  
-        free(line);       /* free the malloc'ed string */  
-        X509_free(cert);     /* free the malloc'ed certificate copy */  
-    }  
+    X509_NAME * name = X509_get_subject_name(cert);
+    X509_NAME_get_text_by_NID(name, NID_commonName, commonName, 512);
+    if(strcmp(commonName, hostname) != 0) {
+        printf("Invalid certificate detected!.\n");
+        exit(EXIT_FAILURE);
+    }
     else {
-        printf("No certificates. Exiting program.\n");
-        //exit(EXIT_FAILURE); //Exits when the server does not have a cert
+        printf("Certificate valid. Host is verified.\n");
     }  
         
-}  
+}
+/**
+ * Modified to include cert verification
+ * @param ssl
+ */  
+void ShowServerCerts(SSL* ssl)  {
+    X509 *cert;  
+    char *line;
+    char commonName[512];
+    char hostname[] = "CloudServer";
+  
+    cert = SSL_get_peer_certificate(ssl); /* get the server's certificate */  
+    X509_NAME * name = X509_get_subject_name(cert);
+    X509_NAME_get_text_by_NID(name, NID_commonName, commonName, 512);
+    if(strcmp(commonName, hostname) != 0) {
+        printf("Invalid certificate detected!.\n");
+        exit(EXIT_FAILURE);
+    }
+    else {
+        printf("Certificate valid. Host is verified.\n");
+    }
+        
+} 
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/
 /**
  * Compress file into a buffer to send across the network
@@ -472,6 +495,11 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
                         logged_in = 1; //success
                         return logged_in;
                     }
+                    else {
+                        printf("Fail to log in! Wrong username/password!\n");
+                        logged_in = 0; //fail
+                        return logged_in;
+                    }
                 }
             }else{
                 printf("Error: Sending packet. -login\n"); 
@@ -510,10 +538,10 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
             strcpy(packet_data, buyCloudMoney());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
-            if(sendDataTo(sslBank, packet_data, packet_size) == 1) {//Success SENDING BANK LOGIN + FUNDS
-                char *amountToBuy = malloc(1000 * sizeof(char));
-                strcpy(amountToBuy, getAmountToBuy());
-                sendDataTo(sslBank, amountToBuy, strlen(amountToBuy)); //Send to bank
+            sendDataTo(sslBank, packet_data, 50);//Success SENDING BANK LOGIN + FUNDS
+            char *amountToBuy = malloc(1000 * sizeof(char));
+            strcpy(amountToBuy, getAmountToBuy());
+            sendDataTo(sslBank, amountToBuy, strlen(amountToBuy)); //Send to bank
 //                char *received_packet = malloc (1000 * sizeof(char));
 //                if(receiveDataFrom(sslServer, received_packet, 30000) == 1) {//Success HANDLE REPLY
 //                    if(strcmp(received_packet,"1") == 0) {
@@ -523,10 +551,6 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
 //                        return logged_in;
 //                    }
 //                }
-            }
-            else {
-                printf("Error: Sending packet. -login\n"); 
-            }
             logged_in = 0;
             return logged_in;
             break;
@@ -550,6 +574,31 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
             printf("Unable to use -checkCloudFunds as you are NOT logged in!\n");
             logged_in = 0;
             return logged_in;
+            break;
+        }
+        case 11: { //-registerBankAccount
+            printf("-registerBankAccount Command Received.\n");
+            strcpy(packet_data, registerBankAccount());
+            printf("Packet Data = %s\n", packet_data);
+            packet_size = strlen(packet_data);
+            if(sendDataTo(sslBank, packet_data, packet_size) == 1) {//Success SEND
+                char *received_packet = malloc (1000 * sizeof(char));
+                if(receiveDataFrom(sslBank, received_packet, 30000) == 1) {//Success HANDLE REPLY
+                    if(strcmp(received_packet,"1") == 0) {
+                        printf("Bank Login successful!\n");
+                        //sscanf(packet_data, "%*d %s %*s", LOGGED_IN_AS_USERNAME);
+                        logged_in = 0; //success
+                        return logged_in;
+                    }
+                    else {
+                        printf("Bank Login FAIL!!\n");
+                        logged_in = 0; //fail
+                        return logged_in;
+                    }
+                }
+            }else{
+                printf("Error: Sending packet. -login\n"); 
+            }
             break;
         }
         case 99: {//-help
@@ -702,11 +751,8 @@ SSL* connectToCloudServer(char *strings[]) {
         ERR_print_errors_fp(stderr);
     }
     else {
-            ShowCerts(ssl);        /* get any certs */
-            if(SSL_get_verify_result(ssl) != X509_V_OK) {
-                printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
-                //exit(EXIT_FAILURE);
-            }
+            ShowServerCerts(ssl);        /* get any certs */
+
     }
     return ssl;
 }
@@ -735,11 +781,8 @@ SSL* connectToCloudBank(char *strings[]) {
         printf("DONE1!!!\n");
     }
     else {
-            ShowCerts(ssl);        /* get any certs */
-            if(SSL_get_verify_result(ssl) != X509_V_OK) {
-                printf("Fail verification. NEED TO WORK ON THIS!!!!\n");
-                //exit(EXIT_FAILURE);
-            }
+            ShowBankCerts(ssl);        /* get any certs */
+
     }
     return ssl;
   
@@ -757,9 +800,9 @@ int main(int count, char *strings[]) {
     }
     SSL_library_init(); 
     SSL *sslServer = connectToCloudServer(strings);
-    printf("Created SSLSERVER.\n");
+    //printf("Created SSLSERVER.\n");
     SSL *sslBank = connectToCloudBank(strings);
-    printf("Created SSLCLOUDBANK\n");
+    //printf("Created SSLCLOUDBANK\n");
     system("clear");
     
     /*Beginning of actual calling*/

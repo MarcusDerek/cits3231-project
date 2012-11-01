@@ -1,8 +1,11 @@
 /* 
  * File:   bank.c
- * Author: MarcusDerek
+ * 
+ * Team: 
+ * Marcus Derek - 11016403
+ * Taiga Yano - 20698782
+ * Bryan Kho - 20714477
  *
- * Created on October 25, 2012, 11:17 PM
  */
 
 //SSL-Bank.c 
@@ -25,7 +28,7 @@
 #include <openssl/sha.h>
 
 #define FAIL    -1
-#define BANK_SALT "banksalt"
+#define SALT "banksalt"
 
 /*Global Variable*/
 char LOGGED_IN_AS_USERNAME[100];
@@ -55,7 +58,7 @@ int sendDataTo(SSL *ssl, char* sent_packet, int sent_packet_size) {
  */
 int receiveCommandFrom(SSL *ssl, char* received_packet) {
     int success = 1;
-    int bytes_received = SSL_read(ssl, received_packet, 100);
+    int bytes_received = SSL_read(ssl, received_packet, 50);
     if(bytes_received == 0) {
         printf("Connection terminated abruptly.\n");
         exit(EXIT_FAILURE);
@@ -297,69 +300,72 @@ SSL* connectToCloudServer(char *strings[]) {
     return ssl;
 }
 
-char *generate_hash(char *input)
-{
-	SHA_CTX c;
-	unsigned char hash[128];
-	
-	SHA_Init(&c);
-        char *salted = malloc(512 * sizeof(char));
-	char *line = malloc(512 * sizeof(char));
-	strcat(salted,input);
-        strcat(salted,BANK_SALT);
-	SHA_Update(&c,salted,strlen(input));
-	
-	SHA_Final(hash,&c);
-	
-	int i = 0;
-	
-	while ( i<SHA_DIGEST_LENGTH) {
-		sprintf(line,"%02x",(unsigned int)hash[i]);
-		i++;
-	}
-	return line;
+/**
+ * WORKING!
+ * @param input
+ * @return 
+ */
+char *generate_hash(char *input){
+    char *salted = malloc((strlen(input)+1000) * sizeof(char));
+    strcat(salted,input);
+    strcat(salted,SALT);
+    unsigned char hash[10];
+    SHA1(salted,strlen(salted),hash);
+    unsigned char *final = malloc((strlen(hash)+1000) * sizeof(unsigned char));
+    int i;
+    for (i = 0; i < strlen(hash);i++){
+        sprintf(final,"%s%u",final,hash[i]);
+    }
+    return final;
 }
 
-void create_account(char *email, char *password, char *balance){
-	FILE *fp;
-	
-	if ((fp = fopen("password_file.file","ra"))==NULL) {
-            if((fp = fopen("password_file.file","w"))==NULL){
-                printf("Error generating the password file\n");
-                exit(EXIT_FAILURE);
-            }
-            if((fp = fopen("password_file.file","ra"))==NULL){
-                printf("Error generating the password file\n");
-            }
-	}
-	char *line = malloc(256 * sizeof(char));
-	bool found = false;
-	while(1){
-		if (feof(fp)||ferror(fp)) {
-			break;
-		}
-		fgets(line, sizeof(line), fp);
-                char *email_in_list = malloc(512 * sizeof(char));
-                sscanf(line,"%s %*s",email_in_list);
-		if(strcmp(email_in_list,email) == 0){
-			found = true;
-			printf("email is already registered\n");
-			break;
-		}
-	}
-	if(found){
-            printf("creating new account aborted.\n");
+int create_account(char *received_packet, SSL *sslClient){
+    int found = 0;
+    char* username = malloc(1000 * sizeof(char));
+    char* password = malloc(1000 * sizeof(char));
+    sscanf(received_packet, "%*d %s %s", username, password);
+    
+    FILE *fp;
+    
+    if((fp = fopen("password_file.txt","r+")) == NULL) {//need to append{
+        printf("Error: Opening file.\n");
+        exit(EXIT_FAILURE);
+    } 
+    char* line = malloc(1000 * sizeof(char));
+    char* username2 = malloc(1000* sizeof(char));
+    char* password2 = malloc(1000* sizeof(char));
+    while(!feof(fp)) {
+       
+        fgets(line, 1000, fp);
+        printf("Scanning: %s\n", line);
+
+        sscanf(line,"%s %s %*s",username2,password2);
+        if(strcmp(username2,username) == 0) { //If found.. quit! Bryan say so!
+            found = 1;
+            break;
         }
-	else {
-            fprintf(fp,"%s %s %s\n",email, (generate_hash(password)),balance);
-	}
+        
+    }
+    if(found == 1) {
+        printf("User already exist in system!.\n\n");
+        fclose(fp);
+        return 0;
+    }
+    else {
+        printf("Creating new user %s, password %s.\n",username,password);
+        char *buffer = malloc (1000 * sizeof (char));
+        sprintf(buffer,"%s %s 0\n", username, generate_hash(password));
+        fputs(buffer,fp);
+        fclose(fp);
+        return 1;
+    }
 }
 
 
 bool withdraw(char *account, char *amount){
 	FILE *fp;
 	
-	if ((fp = fopen("password_file.file","rw"))==NULL) {
+	if ((fp = fopen("password_file.file","r+"))==NULL) {
 		//error
 	}
 	char *line = malloc(256 * sizeof(char));
@@ -429,44 +435,36 @@ bool compare_hash(char *hash_alpha, char *hash_bravo){
  * @return 
  */
 int loginToBankAccount(char *received_packet, SSL *ssl) {
+    int found;
     char *username = malloc(1000 * sizeof(char));
     char *password = malloc(1000 * sizeof(char));
-    sscanf(received_packet, "%*d %s %s", username, password);
-    strcpy(LOGGED_IN_AS_USERNAME, username); //SETS THE GLOBAL USERNAME
-    //TAIGA TO DO
+    sscanf(received_packet, "%*d %s %s", username,password);
     FILE *fp;
-    if ((fp = fopen("password_file.file","r"))==NULL) {
-		//error
-	}
-	char *line = malloc(256 * sizeof(char));
-	bool found = false;
-	while(1){
-		if (feof(fp)||ferror(fp)) {
-			break;
-		}
-		fgets(line, sizeof(line), fp);
-		char *email_in_list = malloc(512 * sizeof(char));
-                sscanf(line,"%s %*s",email_in_list);
-		if(strcmp(email_in_list,LOGGED_IN_AS_USERNAME) == 0){
-			char *user = malloc(128 * sizeof(char));
-			char *hash = malloc(256 * sizeof(char));
-			char *balance = malloc(128 * sizeof(char));
-			sscanf("%s %s %s",user,hash,balance);
-			if (strcmp(hash,generate_hash(password))==0) {
-				printf("login successful\n");
-                                LOGGED_IN = 1;
-                                return 1;
-                                
-			}
-                        else{
-                            return 0;
-                        }
-                        
-		}
-	}
+    if((fp = fopen("password_file.txt","r"))==NULL){
+        printf("Error reading the password file\n");
+        exit(EXIT_FAILURE);
+    }
+    char *hashedPassword = generate_hash(password);
+    char* username2 = malloc(1000* sizeof(char));
+    char* password2 = malloc(1000* sizeof(char));
+    char* line = malloc(1000 * sizeof(char));
+    while(!feof(fp)) {
         
-    
-    return 0; //1 success, 0 otherwise
+        fgets(line, 1000, fp);
+        
+        sscanf(line,"%s %s %*s",username2,password2);
+        printf("\n%s\n%s\n",hashedPassword , password2);
+        if(strcmp(username2,username) == 0) { //If found.. quit! Bryan say so!
+            if(strcmp(hashedPassword,password2) == 0) { //Success
+                strcpy(LOGGED_IN_AS_USERNAME, username); //SETS THE GLOBAL USERNAME
+                LOGGED_IN = 1;
+                return 1; //success
+            }
+        }
+    }
+    return 0;
+
+
 }
 int addCloudMoneyToServer(SSL *sslServer, char *cloudMoney) {
     //char *cloudMonies = malloc(1000 * sizeof(char));
@@ -480,24 +478,27 @@ void serviceConnection(SSL *sslClient, SSL *sslServer) {
     char *file_packet = malloc(1000 * sizeof(char));  
     char *reply = "Success!";  
     int sd, bytes;  
-   
+    
+    while(1) {
     char *received_packet = malloc(1000 * sizeof(char));
+    char modifiedPacket[50];
     int file_size;
     char *sent_packet = malloc(1000 * sizeof(char));
-    if(receiveCommandFrom(sslClient, received_packet) == 1) {
-        printf("Received MSG: %s\n", received_packet);
-    } else {
-        printf("Error: Receive invalid command!\n");
-        //exit(EXIT_FAILURE);
-    }
+    //ShowClientCerts(ssl);        /* get any certificates */
+    
+            if(receiveCommandFrom(sslClient, received_packet) == 1) {
+                strncpy(modifiedPacket, received_packet, sizeof(modifiedPacket));
+                printf("Received MSG: %s\n", modifiedPacket);
+            } else {
+                 printf("Error: Receive invalid command!\n");
+                //exit(EXIT_FAILURE);
+            }
     int userInputCommand;
      /*
      * Determine which command is used
      */
     int status;
     sscanf(received_packet, "%d", &userInputCommand);
-    //ShowClientCerts(ssl);        /* get any certificates */
-    while(1) {
         switch (userInputCommand) {
             case 8: { //-buyCloudMoney
                 status = loginToBankAccount(received_packet, sslClient);//ie 8 Marcus 123456
@@ -510,10 +511,12 @@ void serviceConnection(SSL *sslClient, SSL *sslServer) {
                         printf("aborting\n");
                     }
                     //MARCUS - TO DO SUCCES OR FAIL STATEMENT
+                    printf("Withdraw successful.\n");
                     int statusMoney = addCloudMoneyToServer(sslServer, amountToBuy);
                     //sendDataTo(sslClient, "1", 10);
                     //printf("-login: Success\n");
                 } else {
+                    printf("Error logging into bank!!\n");
                     //sendDataTo(sslClient, "0", 10);
                     //printf("-login: Fail\n");
                 }
@@ -526,6 +529,19 @@ void serviceConnection(SSL *sslClient, SSL *sslServer) {
                     char *FUNDS = check_balance(LOGGED_IN_AS_USERNAME);
                     sendDataTo(sslClient, FUNDS, 10);
                 }
+                break;
+            }
+            case 11: { //createAccoutn
+                status = create_account(received_packet, sslClient);
+                if(status == 1) { //1 == Pass, 0 == fail
+                    sendDataTo(sslClient, "1", 10);
+                    printf("-registerBankAccount: Success\n");
+                } else {
+                    sendDataTo(sslClient, "0", 10);
+                    printf("-registerBankAccount: Fail\n");
+                }
+                break;
+                
             }
         }
     }

@@ -1,9 +1,10 @@
-//
-//  commands.c
-//
-//  Created by Lion User on 14/10/2012.
-//  Copyright (c) 2012 __MyCompanyName__. All rights reserved.
-//
+/*  commands.c
+ * 
+ * Team: 
+ * Marcus Derek - 11016403
+ * Taiga Yano - 20698782
+ * Bryan Kho - 20714477
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +23,8 @@ const char list[][30] = {
     "-listAllFiles",//8
     "-buyCloudMoney", //9
     "-checkBankFunds",//10
-    "-checkCloudFunds"//11
+    "-checkCloudFunds",//11
+    "-registerBankAccount" //12
             
             
 };
@@ -101,6 +103,8 @@ int verifyUserCommand(char* cmd) {
         return 9;
     } else if(strcmp(cmd, list[11]) == 0) { //-checkCloudFunds
         return 10;
+    } else if(strcmp(cmd, list[12]) == 0) { //-registerBankAccount
+        return 11;
     }
     return ERROR;
 }
@@ -119,10 +123,14 @@ char* registerNewAccount() { //1
     printf("Registering account...\n");
     printf("Enter your desired username: ");
     scanf("%s", userName);
-    printf("Enter a 6-digit password: ");
+    printf("Enter your 10-digit password: ");
     scanf("%s", password);
+    while(strlen(password) < 10) {
+        printf("Please enter a 10-digit password: ");
+        scanf("%s", password);
+    }
     output = concatSentence(1,userName, password); //1 = registerAcc
-    printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
+    //printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
     return output;
 }
 /**
@@ -137,10 +145,14 @@ char* loginToAccount() {//2
     printf("Logging into account...\n");
     printf("Enter your username: ");
     scanf("%s", userName);
-    printf("Enter your 6-digit password: ");
+    printf("Enter your 10-digit password: ");
     scanf("%s", password);
+    while(strlen(password) < 10) {
+        printf("Please enter a 10-digit password: ");
+        scanf("%s", password);
+    }
     output = concatSentence(2,userName, password); //2 = login
-    printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
+    //printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
     return output;
 }
 /**
@@ -218,12 +230,16 @@ char* buyCloudMoney() {//2
     printf("Logging into BANK Account...\n");
     printf("Enter your username: ");
     scanf("%s", userName);
-    printf("Enter your 6-digit password: ");
+    printf("Enter your 10-digit password: ");
     scanf("%s", password);
+    while(strlen(password) < 10) {
+        printf("Please enter a 10-digit password: ");
+        scanf("%s", password);
+    }
     output = concatSentence(8,userName, password); //8 = buyCloudMoney
     //strcat(output, " ");
     //strcat(output, amountOfMoneyToBuy); //8 Marcus 123456 6000
-    printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
+    //printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
     return output;
 }
 char *getAmountToBuy() {
@@ -236,7 +252,7 @@ char *getAmountToBuy() {
  * Checks the funds in the Bank Server
  * @return 
  */
-char* checkBankFunds() {
+char* checkBankFunds() { //9
     char *userName = malloc(1000 * (sizeof(char)));
     char *password = malloc(1000 * (sizeof(char)));
     
@@ -247,14 +263,14 @@ char* checkBankFunds() {
     printf("Enter your 6-digit password: ");
     scanf("%s", password);
     output = concatSentence(9,userName, password); //9 = checkBankFunds
-    printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
+    //printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
     return output;
 }
 /**
  * Check the funds in the Cloud server
  * @return 
  */
-char* checkCloudFunds() {
+char* checkCloudFunds() { //10
     char *userName = malloc(1000 * (sizeof(char)));
     char *password = malloc(1000 * (sizeof(char)));
     
@@ -265,7 +281,26 @@ char* checkCloudFunds() {
     printf("Enter your 6-digit password: ");
     scanf("%s", password);
     output = concatSentence(10,userName, password); //10 = checkCloudFunds
-    printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
+    //printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
+    return output;
+}
+char* registerBankAccount() { //11
+    char *userName = malloc(1000 * (sizeof(char)));
+    char *password = malloc(1000 * (sizeof(char)));
+    
+    char *output = malloc(1000 * sizeof(char));
+    printf("Registering BANK account...\n");
+    printf("Enter your desired username: ");
+    scanf("%s", userName);
+    printf("Enter your 10-digit password: ");
+    scanf("%s", password);
+    while(strlen(password) < 10) {
+        printf("Please enter a 10-digit password: ");
+        scanf("%s", password);
+    }
+    output = concatSentence(11,userName, password); //1 = registerAcc
+    //printf("Userid: %s Password: %s | Output from Main: %s\n",userName, password, output);
+    strcat(output,"\0");
     return output;
 }
 
