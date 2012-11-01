@@ -120,6 +120,7 @@ void ShowServerCerts(SSL* ssl)  {
         
 } 
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/
+
 /**
  * Compress file into a buffer to send across the network
  * @param file_size size of file
@@ -191,7 +192,7 @@ int sendDataTo(SSL *ssl, char* sent_packet, int sent_packet_size) {
     if(bytes_sent >= sent_packet_size) {
         success = 1;
     }
-    printf("Client: Packet sent successful.\n");
+    //printf("Client: Packet sent successful.\n");
     return success;
 }
 /**
@@ -209,7 +210,7 @@ int send_all_data(SSL *ssl, char *packet, int packet_size)
 
     while(bytes_sent < packet_size) {
         n = SSL_write(ssl, packet + bytes_sent, bytes_remaining);
-        printf("%d bytes sent to client.\n", n);
+        //printf("%d bytes sent to client.\n", n);
         if (n == -1) { 
             printf("BREAK!!!!\n");
             break; 
@@ -217,7 +218,7 @@ int send_all_data(SSL *ssl, char *packet, int packet_size)
         bytes_sent = bytes_sent + n;
         bytes_remaining = bytes_remaining - n;
     }
-	printf("Total bytes sent = %d\n", bytes_sent);
+	//printf("Total bytes sent = %d\n", bytes_sent);
 
     return n==-1?-1:0; // return -1 on failure, 0 on success
 }
@@ -241,7 +242,7 @@ int receiveDataFrom(SSL *ssl, char* received_packet, int received_packet_size) {
             exit(EXIT_FAILURE);
         }
     }
-    printf("Client: Packet received successful.\n");
+    //printf("Client: Packet received successful.\n");
     return success;
     
 }
@@ -307,7 +308,8 @@ void sendFileSizeNameDataTo(SSL *ssl, char *sent_packet) {
     int bytes_sent = SSL_write(ssl, sent_packet,30);
 }
 int sendFileToServer(SSL *ssl) {
-    sendDataTo(ssl, "3", 5); //Trigger server to receive file
+    superStringSend(ssl, 5, "3");
+    //sendDataTo(ssl, "3", 5); //Trigger server to receive file
     char *filePath = malloc(1000 * sizeof(char));
     size_t file_size;
     strcpy(filePath, addFile());
@@ -391,7 +393,7 @@ int deleteFileFromServer(SSL *ssl) {
     char *packet_data = malloc(1000 * sizeof(char));
     strcpy(packet_data, deleteFile()); //Return filename to be deleted <4 filename "">
     int packet_size = strlen(packet_data);
-    if(sendDataTo(ssl, packet_data, packet_size) == 1) { //Success SEND
+    if(superStringSend(ssl, packet_data, packet_size) == 1) { //Success SEND
         char *received_packet = malloc (1000 * sizeof(char));
         if(receiveDataFrom(ssl, received_packet, 30000) == 1) {//Success HANDLE REPLY
             if(strcmp(received_packet,"1") == 0) {
@@ -427,9 +429,9 @@ int listAllFilesOnServer(SSL *ssl) {
     char *packet_data = malloc(1000 * sizeof(char));
     strcpy(packet_data, listAllFiles()); //Return command to retrieve list of files
     int packet_size = strlen(packet_data);
-    if(sendDataTo(ssl, packet_data, packet_size) == 1) { //Success SEND
+    if(superStringSend(ssl, packet_size, packet_data) == 1) { //Success SEND
         char *received_packet = malloc (100000 * sizeof(char)); //PREPARE TO RECEIVE LIST OF FILES. MIGHT BE HUGE
-        if(receiveDataFrom(ssl, received_packet, 100000) == 1) {//Success HANDLE REPLY
+        if(superStringReceive(ssl, received_packet) == 1) {//Success HANDLE REPLY
             printf("%s", received_packet);
             return 1;
         }
@@ -438,7 +440,54 @@ int listAllFilesOnServer(SSL *ssl) {
     }
 }
 /**
- * Access to this function is allowed for anyone. No logged in required
+ * Super improved string sending function
+ * @param sockfd - socket
+ * @param sizeOfDataInfo - Size of the string in a string
+ * @param output - The actual string to be sent
+ * @return 
+ */
+int superStringSend(SSL *ssl, int sizeOfDataInfo, char* output) {
+    char *sizeofdata = malloc(1000 * sizeof(char));
+    int size = strlen(output);
+    sprintf(sizeofdata,"%d", size);
+    send_all_data(ssl, sizeofdata,1000);
+    send_all_data(ssl, output, strlen(output));
+    return 1; //Temp 
+}
+char* receive_all_data(SSL *ssl, int packet_size) {
+    int bytes_received;
+    int total_size = 0;
+    char *packet = malloc(packet_size * sizeof(char));
+    while(bytes_received != packet_size) {
+        //bytes_received = recv(sockfd, packet + total_size, packet_size, 0); //Receive First Line @ Loop 0
+        bytes_received = SSL_read(ssl, packet + total_size, packet_size);
+        total_size = total_size + bytes_received; //Increment pointer to add additional data
+        //printf("%d bytes received.\n", total_size);
+        if(bytes_received == 0) {//Problem or Done
+                printf("File transfer complete.\n");
+                break;
+        }
+        if(bytes_received == -1) {
+                printf("Error receiving File.\n");
+                break;
+        }
+    }
+    //printf("Total Bytes Received from Server: %d\n", total_size);
+    return packet;
+}
+int superStringReceive(SSL *ssl, char* received_packet) {
+    char *size = malloc(1000 * sizeof(char));
+    size = receive_all_data(ssl, 1000);
+    int sizeOfPacket = atoi(size);
+    char *buffer = malloc(1000 * sizeof(char));
+    buffer = receive_all_data(ssl, sizeOfPacket);
+    char *mrNullPtr = "\0";
+    strncpy(received_packet, buffer, sizeOfPacket);
+    strcat(received_packet, mrNullPtr);
+    return 1;
+}
+/**
+ * Access to this functions is allowed for anyone. No logged in required
  * @param ssl
  * @return 1 successful login, 0, fail 
  */
@@ -470,11 +519,17 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
             strcpy(packet_data, registerNewAccount());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
-            if(sendDataTo(sslServer, packet_data, packet_size) == 1) {//Success SEND
+            //if(sendDataTo(sslServer, packet_data, packet_size) == 1) {//Success SEND
+            if(superStringSend(sslServer, packet_size, packet_data) == 1) {
                 char *received_packet = malloc (1000 * sizeof(char));
                 if(receiveDataFrom(sslServer, received_packet, 30000) == 1) {//Success RECEIVE REPLY
                     if(strcmp(received_packet,"1") == 0) {
+                        system("clear");
                         printf("Account registration successful!\n");
+                    }
+                    else {
+                        system("clear");
+                        printf("Sorry, the username has already been taken!.\n");
                     }
                 }
             }else{
@@ -486,7 +541,8 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
             strcpy(packet_data, loginToAccount());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
-            if(sendDataTo(sslServer, packet_data, packet_size) == 1) {//Success SEND
+            //if(sendDataTo(sslServer, packet_data, packet_size) == 1) {//Success SEND
+            if(superStringSend(sslServer, packet_size, packet_data) == 1) {
                 char *received_packet = malloc (1000 * sizeof(char));
                 if(receiveDataFrom(sslServer, received_packet, 30000) == 1) {//Success HANDLE REPLY
                     if(strcmp(received_packet,"1") == 0) {
@@ -534,14 +590,19 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
         case 8: { //-buyCloudMoney
             printf("-BuyCloudMoney Command Received.\n");
             char *switch_data = "8"; //Tell server to switch focus to BANK
-            sendDataTo(sslServer, switch_data, strlen(switch_data)); //Switch SERVER attention
+            packet_size = strlen(switch_data);
+            superStringSend(sslServer, packet_size, packet_data);
+            //sendDataTo(sslServer, switch_data, strlen(switch_data)); //Switch SERVER attention
             strcpy(packet_data, buyCloudMoney());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
-            sendDataTo(sslBank, packet_data, 50);//Success SENDING BANK LOGIN + FUNDS
+            superStringSend(sslBank, packet_size, packet_data);
+            //sendDataTo(sslBank, packet_data, 50);//Success SENDING BANK LOGIN + FUNDS
             char *amountToBuy = malloc(1000 * sizeof(char));
             strcpy(amountToBuy, getAmountToBuy());
-            sendDataTo(sslBank, amountToBuy, strlen(amountToBuy)); //Send to bank
+            int sizeOfAmountToBuy = strlen(amountToBuy);
+            superStringSend(sslBank, sizeOfAmountToBuy, amountToBuy);
+            //sendDataTo(sslBank, amountToBuy, strlen(amountToBuy)); //Send to bank
 //                char *received_packet = malloc (1000 * sizeof(char));
 //                if(receiveDataFrom(sslServer, received_packet, 30000) == 1) {//Success HANDLE REPLY
 //                    if(strcmp(received_packet,"1") == 0) {
@@ -560,7 +621,8 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
             strcpy(packet_data, checkBankFunds());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
-            if(sendDataTo(sslBank, packet_data, packet_size) == 1) { //Send checkfunds to bank
+            //if(sendDataTo(sslBank, packet_data, packet_size) == 1) { //Send checkfunds to bank
+            if(superStringSend(sslBank, packet_size, packet_data) == 1) {
                 char *received_packet = malloc (1000 * sizeof(char)); //Standby to receive amount
                     if(receiveDataFrom(sslBank, received_packet, 30000) == 1) { //receive amount
                         printf("You have %s of bank funds.\n", received_packet);
@@ -581,7 +643,8 @@ int processCommonInputs(SSL *sslServer, SSL *sslBank) {
             strcpy(packet_data, registerBankAccount());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
-            if(sendDataTo(sslBank, packet_data, packet_size) == 1) {//Success SEND
+            //if(sendDataTo(sslBank, packet_data, packet_size) == 1) {//Success SEND
+            if(superStringSend(sslBank, packet_size, packet_data) == 1) {
                 char *received_packet = malloc (1000 * sizeof(char));
                 if(receiveDataFrom(sslBank, received_packet, 30000) == 1) {//Success HANDLE REPLY
                     if(strcmp(received_packet,"1") == 0) {
@@ -715,7 +778,8 @@ void processLoggedInUserInputs(SSL *sslServer, SSL* sslBank) {
             strcpy(packet_data, checkCloudFunds());
             printf("Packet Data = %s\n", packet_data);
             packet_size = strlen(packet_data);
-            if(sendDataTo(sslServer, packet_data, packet_size) == 1) { //Send checkfunds to bank
+            //if(sendDataTo(sslServer, packet_data, packet_size) == 1) { //Send checkfunds to bank
+            if(superStringSend(sslServer, packet_size, packet_data) == 1) {
                 char *received_packet = malloc (1000 * sizeof(char)); //Standby to receive amount
                     if(receiveDataFrom(sslServer, received_packet, 30000) == 1) { //receive amount
                         printf("You have %s of cloud funds.\n", received_packet);
@@ -723,8 +787,8 @@ void processLoggedInUserInputs(SSL *sslServer, SSL* sslBank) {
             }
             break;
         }
-        case 99: {//-help
-            printf("%s", get_HelpList());
+        case 99: {//-help for logged in
+            printf("%s", get_HelpList2());
             break;
         }
     }

@@ -54,7 +54,16 @@ char* get_HelpList() {
     char *listOfCommands = "List of Commands\n\n"
     "-registerNewAccount user-name password || To register for a new account\n"
     "-login user-name password || To log in to your existing account\n"
-    "-help || Returns a list of useful commands\n";
+    "-help || Returns a list of useful commands\n\n";
+    return listOfCommands;
+}
+char* get_HelpList2() {
+    char *listOfCommands = "List of Commands (Available only when LOGGED IN)\n\n"
+    "-addFile || Add a file to your repository\n"
+    "-deleteFile || Delete a file from your repository\n"
+    "-fetchFile || Download a file from your repository\n"
+    "-verifyFile || Verify a file in your repository. (Not available)\n"
+    "-listAllFiles || List all files in your repository\n\n";
     return listOfCommands;
 }
 /**

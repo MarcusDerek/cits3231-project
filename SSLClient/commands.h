@@ -12,6 +12,7 @@
 /*Global Var*/
 char* get_IntroMsg();
 char* get_HelpList();
+char* get_HelpList2();
 int verifyUserCommand();
 char* registerNewAccount();
 char* loginToAccount();

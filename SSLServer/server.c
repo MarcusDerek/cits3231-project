@@ -28,6 +28,7 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/sha.h>
 
 #define CLOUD_SERVER_PORT "3230"  // the port users will be connecting to
 #define CLOUD_SERVER_ADDRESS "130.95.1.70"
@@ -113,16 +114,70 @@ void ShowCerts(SSL* ssl)
         printf("Server certificates:\n");  
         line = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);  
         printf("Subject: %s\n", line);  
-        free(line);  
+        //free(line);  
         line = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);  
         printf("Issuer: %s\n", line);  
-        free(line);  
-        X509_free(cert);  
+        //free(line);  
+       //X509_free(cert);  
+        printf("-----------------\n");
     }  
     else  
         printf("No client certificates available.\n");  
+    printf("-----------------\n");
 }  
 /* -------------- BASE CODE - DO NOT TOUCH *----------------------------------------------------------*/  
+char* receive_all_data(SSL *ssl, int packet_size) {
+    int bytes_received;
+    int total_size = 0;
+    char *packet = malloc(packet_size * sizeof(char));
+    while(bytes_received != packet_size) {
+        //bytes_received = recv(sockfd, packet + total_size, packet_size, 0); //Receive First Line @ Loop 0
+        bytes_received = SSL_read(ssl, packet + total_size, packet_size);
+        total_size = total_size + bytes_received; //Increment pointer to add additional data
+        printf("%d bytes received.\n", total_size);
+        if(bytes_received == 0) {//Problem or Done
+                printf("File transfer complete.\n");
+                break;
+        }
+        if(bytes_received == -1) {
+                printf("Error receiving File.\n");
+                break;
+        }
+    }
+    printf("Total Bytes Received from Server: %d\n", total_size);
+    return packet;
+}
+/**
+ * Super improved string receive function
+ * @param socket socket
+ * @return receive the string from someone
+ */
+int superStringReceive(SSL *ssl, char* received_packet) {
+    char *size = malloc(1000 * sizeof(char));
+    size = receive_all_data(ssl, 1000);
+    int sizeOfPacket = atoi(size);
+    char *buffer = malloc(1000 * sizeof(char));
+    buffer = receive_all_data(ssl, sizeOfPacket);
+    char *mrNullPtr = "\0";
+    strncpy(received_packet, buffer, sizeOfPacket);
+    strcat(received_packet, mrNullPtr);
+    return 1;
+}
+/**
+ * Super improved string sending function
+ * @param sockfd - socket
+ * @param sizeOfDataInfo - Size of the string in a string
+ * @param output - The actual string to be sent
+ * @return 
+ */
+int superStringSend(SSL *ssl, int sizeOfDataInfo, char* output) {
+    char *sizeofdata = malloc(1000 * sizeof(char));
+    int size = strlen(output);
+    sprintf(sizeofdata,"%d", size);
+    send_all_data(ssl, sizeofdata,1000);
+    send_all_data(ssl, output, strlen(output));
+    return 1; //Temp 
+}
 /**
  * Compress file into a buffer to send across the network
  * @param file_size size of file
@@ -167,6 +222,7 @@ char* compress_File_to_stream(size_t *file_size, char *file_path)
 	}
 	fclose(pFile);
         printf("File Process Complete.\n");
+        printf("-----------------\n");
 	return buffer;
 }
 /** 
@@ -195,6 +251,7 @@ void packetToFile(char *packet, int size, char *fileName) {
     fwrite(packet, 1, size, pFile);
     fclose(pFile);
     printf("File created.\n");
+    printf("-----------------\n");
 }
 /**
  * Receive Data from Cloud. Use for files
@@ -225,6 +282,7 @@ int receiveDataFrom(SSL *ssl, char* received_packet, int received_packet_size) {
         }
     }
     printf("Total Bytes Received from Server: %d\n", total_size);
+    printf("-----------------\n");
     return success;
 }
 /**
@@ -246,6 +304,7 @@ int receiveCommandFrom(SSL *ssl, char* received_packet) {
     int bytes_received = SSL_read(ssl, received_packet, 50);
     if(bytes_received == 0) {
         printf("Connection terminated abruptly.\n");
+        printf("-----------------\n");
         exit(EXIT_FAILURE);
     }
     return success;
@@ -275,6 +334,7 @@ int send_all_data(SSL *ssl, char *packet, int packet_size)
     }
 	printf("Total bytes sent = %d\n", bytes_sent);
 
+        printf("-----------------\n");
     return n==-1?-1:0; // return -1 on failure, 0 on success
 }
 /**
@@ -293,6 +353,7 @@ int sendDataTo(SSL *ssl, char* sent_packet, int sent_packet_size) {
         success = 1;
     }
     printf("Server: Packet sent successful.\n");
+    printf("-----------------\n");
     return success;
 }
 /**
@@ -320,18 +381,42 @@ void sendFileSizeNameDataTo(SSL *ssl, char *sent_packet) {
  * @param input
  * @return 
  */
+//char *generate_hash(char *input){
+////    char *salted = malloc(1000 * sizeof(char));
+////    strcat(salted,input);
+////    strcat(salted,SALT);
+////    unsigned char hash[20];
+//    unsigned char *final = SHA1(salted,strlen(salted),hash);
+//    
+//    SHA256_CTX context;
+//        unsigned char md[SHA256_DIGEST_LENGTH];
+//
+//        SHA256_Init(&context);
+//        SHA256_Update(&context, (unsigned char*)input, strlen(input));
+//        SHA256_Final(md, &context);
+////    unsigned char *final = malloc(1000  * sizeof(unsigned char));
+////    int i;
+////    for (i = 0; i < strlen(hash);i++){
+////        sprintf(final,"%s%uc",final,hash[i]);
+////    }
+////    printf("-----------------\n");
+//    printf("Hash = %s\n", md);
+//    return final;
+//}
 char *generate_hash(char *input){
-    char *salted = malloc((strlen(input)+2) * sizeof(char));
+    char *salted = malloc(1000 * sizeof(char));
     strcat(salted,input);
     strcat(salted,SALT);
-    unsigned char hash[16];
-    SHA1(salted,strlen(salted),hash);
-    unsigned char *final = malloc(strlen(hash) * sizeof(unsigned char));
-    int i;
-    for (i = 0; i < strlen(hash);i++){
-        sprintf(final,"%s%uc",final,hash[i]);
-    }
-    return final;
+    SHA256_CTX context;
+    unsigned char md[SHA256_DIGEST_LENGTH];
+    SHA256_Init(&context);
+    SHA256_Update(&context, (unsigned char*)input, strlen(input));
+    SHA256_Final(md, &context);
+    char *finalOutput = malloc(1000 * sizeof(char));
+    strcpy(finalOutput, md);
+
+    printf("Hash = %s\n", finalOutput);
+    return finalOutput;
 }
 
 /**
@@ -345,24 +430,23 @@ int processRegisterNewAccount(char* received_packet) {
     char* password = malloc(1000 * sizeof(char));
     sscanf(received_packet, "%*d %s %s", username, password);
     
-    createUserDirectory(username);
-    
     FILE *fp;
     
     if((fp = fopen("password_file.txt","r+")) == NULL) {//need to append{
-        printf("Error: Opening file.\n");
+        printf("Error: Opening Password file.\n");
+        printf("-----------------\n");
         exit(EXIT_FAILURE);
     }
     
     while(!feof(fp)) {
         char* line = malloc(1000 * sizeof(char));
         fgets(line, 1000, fp);
-        printf("Scanning: %s\n", line);
-        char* username2 = malloc(1000* sizeof(char));
-        char* password2 = malloc(1000* sizeof(char));
+        char* username2 = malloc(1000 * sizeof(char));
+        char* password2 = malloc(1000 * sizeof(char));
         sscanf(line,"%s %s %*s",username2,password2);
         if(strcmp(username2,username) == 0) { //If found.. quit! Bryan say so!
             found = 1;
+            printf("-----------------\n");
             break;
         }
         
@@ -370,14 +454,17 @@ int processRegisterNewAccount(char* received_packet) {
     if(found == 1) {
         printf("User already exist in system!.\n\n");
         fclose(fp);
+        printf("-----------------\n");
         return 0;
     }
     else {
         printf("Creating new user %s, password %s.\n",username,password);
+        createUserDirectory(username); //Create only on success
         char *buffer = malloc (1000 * sizeof (char));
         sprintf(buffer,"%s %s 0\n", username, generate_hash(password));
         fputs(buffer,fp);
         fclose(fp);
+        printf("-----------------\n");
         return 1;
     }
 
@@ -397,7 +484,7 @@ int loginToAccount(char *received_packet, SSL *ssl) {
     char *password = malloc(1000 * sizeof(char));
     sscanf(received_packet, "%*d %s %s", username,password);
     FILE *fp;
-    if((fp = fopen("password_file.txt","r"))==NULL){
+    if((fp = fopen("password_file.txt","r")) == NULL){
         printf("Error reading the password file\n");
         exit(EXIT_FAILURE);
     }
@@ -409,15 +496,17 @@ int loginToAccount(char *received_packet, SSL *ssl) {
         char* username2 = malloc(1000* sizeof(char));
         char* password2 = malloc(1000* sizeof(char));
         sscanf(line,"%s %s %*s",username2,password2);
-        printf("\n%s\n%s\n",hashedPassword , password2);
+        //printf("\n%s\n%s\n",hashedPassword , password2);
         if(strcmp(username2,username) == 0) { //If found.. quit! Bryan say so!
             if(strcmp(hashedPassword,password2) == 0) { //Success
                 strcpy(LOGGED_IN_AS_USERNAME, username); //SETS THE GLOBAL USERNAME
                 LOGGED_IN = 1;
+                printf("User: %s - Login Successful.\n", LOGGED_IN_AS_USERNAME);
                 return 1; //success
             }
         }
     }
+    printf("-----------------\n");
     return 0;
 
 
@@ -451,6 +540,7 @@ int addFileToCloud(SSL *ssl) {
     strcat(actualFileName,"Storage/");
     strcat(actualFileName,fileName);
     addFileToDirectory(actualFileName, LOGGED_IN_AS_USERNAME);
+    printf("-----------------\n");
     return success;
 }
 /**
@@ -463,6 +553,8 @@ int deleteFileFromCloud(char *received_packet) {
     sscanf(received_packet, "%*d %s %*s", fileName);
     deleteFileFromDirectory(fileName, LOGGED_IN_AS_USERNAME);
     printf("Delete file: %s\n", fileName);
+    printf("-----------------\n");
+    return 1;
 }
 /**
  * Verify the file on the cloud BASED on the filename
@@ -474,6 +566,7 @@ int verifyFileOnCloud(char *received_packet) {
     sscanf(received_packet, "%*d %s %*s", fileName);
     //TO DO -- ADD BRYAN VERIFY FILE HERE
     printf("Verifying file: %s\n", fileName);
+    printf("-----------------\n");
     return 1; //TEMP
 }
 /**
@@ -488,6 +581,7 @@ int fetchFileFromCloud(SSL *ssl, char *received_packet) {
     //sprintf(filePath, "Storage/%s/%s", LOGGED_IN_AS_USERNAME, fileName); //UNCOMMENT WITH REAL ACCOUNT
     if(checkFileExistence(fileName, LOGGED_IN_AS_USERNAME) == 0) { //Not found
         printf("File not found!!\n");
+        printf("-----------------\n");
         return;
     }
     sprintf(filePath, "Storage/%s/%s",LOGGED_IN_AS_USERNAME, fileName);
@@ -499,10 +593,12 @@ int fetchFileFromCloud(SSL *ssl, char *received_packet) {
     printf("FileNameSize: %s\n", fileSizeName);
     if(send_all_data(ssl, fileBuffer, file_size) == 0) { //Success
         printf("Fetch success!\n");
+        printf("-----------------\n");
         return 1;
     }
     else {
         printf("Fetch fail!\n");
+        printf("-----------------\n");
         return 0;
     }
 }
@@ -530,6 +626,7 @@ SSL* acceptClientConnection(int count, char *strings[]) {
     BIO* sslclient = BIO_new_socket(client, BIO_NOCLOSE);
     SSL_set_bio(ssl, sslclient, sslclient);   
     printf("Parameters created.\nAwaiting commands...\n");
+    printf("-----------------\n");
     return ssl;
 }
 
@@ -556,7 +653,7 @@ SSL* acceptBankConnection(int count, char *strings[]) {
     BIO* sslclient = BIO_new_socket(client, BIO_NOCLOSE);
     SSL_set_bio(ssl, sslclient, sslclient);   
     printf("Parameters created.\nAwaiting commands...\n");
-    printf("OMG FINISH!\n");
+    printf("-----------------\n");
     return ssl;
     
 }
@@ -574,7 +671,8 @@ void serviceConnection(SSL* sslClient, SSL* sslBank) {/* Serve the connection --
             char *received_packet = malloc(1000 * sizeof(char));
             int file_size;
             char *sent_packet = malloc(1000 * sizeof(char));
-            if(receiveCommandFrom(sslClient, received_packet) == 1) {
+            printf("Waiting for new instructions...\n");
+            if(superStringReceive(sslClient, received_packet) == 1) {
                 printf("Received MSG: %s\n", received_packet);
             } else {
                 printf("Error: Receive invalid command!\n");
@@ -585,7 +683,7 @@ void serviceConnection(SSL* sslClient, SSL* sslBank) {/* Serve the connection --
              * Determine which command is used
              */
             
-            int status;
+            int status = 0;
             sscanf(received_packet, "%d", &userInputCommand);
             /**
             * This section is used to validate the commands
@@ -659,14 +757,15 @@ void serviceConnection(SSL* sslClient, SSL* sslBank) {/* Serve the connection --
                 }
                 case 7: {//-listAllFiles
                     char *listOfFiles = fetchListOfFiles(LOGGED_IN_AS_USERNAME);
-                    sendDataTo(sslClient, listOfFiles, strlen(listOfFiles));
+                    //sendDataTo(sslClient, listOfFiles, strlen(listOfFiles));
+                    superStringSend(sslClient, strlen(listOfFiles), listOfFiles);
                         
                     break;
                 }
                 case 8: { //-buyCloudMoney (Both server and bank attention required.
                     printf("Prepared to receive fund transfer.\n");
                     char *amountOfCloudDollarsToAddToAccount = malloc(1000 * sizeof(char));
-                    receiveCommandFrom(sslBank, amountOfCloudDollarsToAddToAccount); //Allow BANK TO SEND FUNDS
+                    superStringReceive(sslBank, amountOfCloudDollarsToAddToAccount); //Allow BANK TO SEND FUNDS
                     printf("Amount received: %s\n", amountOfCloudDollarsToAddToAccount);
                     //TAIGA - ADD FUNDS INTO FILE
                     break;
